@@ -26,3 +26,12 @@ The QR code on the receipt opens the same receipt again.
 node --test                      # tests for js/core.js
 python3 -m http.server 8765      # then open http://127.0.0.1:8765/
 ```
+
+## Print it!
+
+It is a receipt, so it prints. The `Save for print` link under the receipt saves an image that fits an 80mm receipt printer exactly (576 dots wide). Paper not included.
+
+<p>
+  <img src="img/printed-1.jpg" alt="A receipt printer printing the receipt" width="49%">
+  <img src="img/printed-2.jpg" alt="The whole printed receipt" width="49%">
+</p>

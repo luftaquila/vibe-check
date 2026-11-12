@@ -9,7 +9,7 @@ const FS = 24;             // 기본 글꼴
 const FS_SMALL = 16;       // 작은 글꼴
 const LH = 30;             // 줄 간격
 const COLS = PW / (FS / 2);
-const S = 2;               // 출력 배율
+const S = 2;               // 공유용 출력 배율. 인쇄용은 1 (1픽셀 = 프린터 1 dot)
 const PAD = 36;            // 종이 바깥 여백
 const INK = '#161616';
 const PAPER = '#fdfdfb';
@@ -118,46 +118,46 @@ const BADGES = [
 const measure = document.createElement('canvas').getContext('2d');
 
 class Pen {
-  constructor(ctx, T) {       // ctx가 없으면 높이만 잰다
+  constructor(ctx, T, scale = S) {       // ctx가 없으면 높이만 잰다
     this.ctx = ctx;
     this.T = T;
+    this.s = scale;
     this.y = 30;
   }
 
-  font(size) { return `${size * S}px ${FONT}`; }
-
-  width(s, size = FS) {
-    measure.font = this.font(size);
+  width(s, size = FS) {       // 배율과 무관하게 같은 값이 나오도록 늘 같은 크기로 잰다
+    measure.font = `${size * S}px ${FONT}`;
     return measure.measureText(s).width / S;
   }
 
   text(x, y, s, size = FS, bold = false, anchor = 'la', fill = INK) {
-    const c = this.ctx;
+    const c = this.ctx, k = this.s;
     if (!c) return;
-    c.font = this.font(size);
+    c.font = `${size * k}px ${FONT}`;
     c.fillStyle = fill;
     c.textBaseline = 'top';
     c.textAlign = anchor === 'ra' ? 'right' : anchor === 'ma' ? 'center' : 'left';
-    c.fillText(s, Math.round(x * S), Math.round(y * S));
-    if (bold) c.fillText(s, Math.round(x * S) + S, Math.round(y * S));   // 강조 인쇄
+    c.fillText(s, Math.round(x * k), Math.round(y * k));
+    if (bold) c.fillText(s, Math.round(x * k) + k, Math.round(y * k));   // 강조 인쇄
   }
 
   rect(x0, y0, x1, y1, fill = INK) {
-    const c = this.ctx;
+    const c = this.ctx, k = this.s;
     if (!c) return;
-    const X0 = Math.round(x0 * S), Y0 = Math.round(y0 * S);
+    const X0 = Math.round(x0 * k), Y0 = Math.round(y0 * k);
     c.fillStyle = fill;
-    c.fillRect(X0, Y0, Math.round(x1 * S) - X0, Math.round(y1 * S) - Y0);
+    c.fillRect(X0, Y0, Math.round(x1 * k) - X0, Math.round(y1 * k) - Y0);
   }
 
   dither(x0, y0, x1, y1, level) {   // 1비트 디더링, level 0~16
     if (!this.ctx) return;
     [x0, y0, x1, y1] = [x0, y0, x1, y1].map(Math.round);
     if (level >= 16) return this.rect(x0, y0, x1, y1);
+    const k = this.s;
     this.ctx.fillStyle = INK;
     for (let py = y0; py < y1; py++)
       for (let px = x0; px < x1; px++)
-        if (BAYER[py % 4][px % 4] < level) this.ctx.fillRect(px * S, py * S, S, S);
+        if (BAYER[py % 4][px % 4] < level) this.ctx.fillRect(px * k, py * k, k, k);
   }
 
   center(s, size = FS, lh) {
@@ -484,19 +484,26 @@ function compose(paper) {
   return out;
 }
 
-async function renderReceipt(d, url, check, lang, card = false) {
+// print: 80mm 감열 프린터용. 폭이 인쇄폭(576 dot)과 같고 배경, 그림자, 좌우 종이 여백이 없다
+async function renderReceipt(d, url, check, lang, card = false, print = false) {
   const T = L[lang] || L.en;
+  const scale = print ? 1 : S;
   await Promise.all([16, 24, 48].map(s => document.fonts.load(`${s * S}px ${FONT}`, '가A')));
   const draw = card ? layoutCard : layout;
   const dry = new Pen(null, T);
   draw(dry, d, url, check);
   const paper = document.createElement('canvas');
-  paper.width = PAPER_W * S;
-  paper.height = Math.round(dry.y * S);
+  paper.width = PAPER_W * scale;
+  paper.height = Math.round(dry.y * scale);
   const ctx = paper.getContext('2d');
   ctx.fillStyle = PAPER;
   ctx.fillRect(0, 0, paper.width, paper.height);
-  draw(new Pen(ctx, T), d, url, check);
+  draw(new Pen(ctx, T, scale), d, url, check);
   threshold(paper);
-  return compose(paper);
+  if (!print) return compose(paper);
+  const out = document.createElement('canvas');
+  out.width = PW;
+  out.height = paper.height;
+  out.getContext('2d').drawImage(paper, -PM, 0);
+  return out;
 }

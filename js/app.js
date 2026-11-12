@@ -17,7 +17,9 @@ const UI = {
     dataTitle: 'Where your data goes',
     data1: 'Your history is counted only on your computer. What you typed stays off the receipt, apart from your five most used short prompts.',
     data2: 'Anyone you give the URL or QR code to can read the receipt.',
-    save: 'Save image', viewFull: 'Full receipt', viewCard: 'Summary card', showTitle: 'Show on receipt', showHg: 'Activity', showPh: 'Short prompt list', showPat: 'Patience', showMo: 'Models, last 30 days', make: 'Make my receipt',
+    printTitle: 'Print it!',
+    print1: 'It is a receipt, so it prints. The "Save for print" link under the receipt saves an image that fits an 80mm receipt printer exactly (576 dots wide). Paper not included.',
+    save: 'Save image', savePrint: 'Save for print (80mm, no margins)', viewFull: 'Full receipt', viewCard: 'Summary card', showTitle: 'Show on receipt', showHg: 'Activity', showPh: 'Short prompt list', showPat: 'Patience', showMo: 'Models, last 30 days', make: 'Make my receipt',
     bad: no => `Check number ${no} does not match. The data in this URL may have been edited.`,
     receiptAlt: d => `${d.n}'s ${d.y} receipt`,
     pageTitle: d => `${d.n}'s ${d.y} year in review`,
@@ -47,7 +49,9 @@ const UI = {
     dataTitle: '내 기록은 어디로 가나요',
     data1: '기록은 내 컴퓨터에서만 세고, 영수증에는 자주 쓴 짧은 프롬프트 5개 말고는 내가 쓴 문장이 들어가지 않습니다.',
     data2: '주소나 QR을 받은 사람은 영수증 내용을 볼 수 있습니다.',
-    save: '이미지 저장', viewFull: '전체 영수증', viewCard: '요약 카드', showTitle: '영수증에 표시', showHg: '잔디밭', showPh: '짧은 프롬프트 목록', showPat: '인내심 지표', showMo: '최근 30일 사용 모델', make: '내 영수증 만들기',
+    printTitle: '진짜 영수증으로 뽑기',
+    print1: '영수증 프린터가 있다면 진짜 종이로 뽑을 수 있습니다. 영수증 아래 "인쇄용으로 저장"을 누르면 80mm 감열지 폭(576dot)에 딱 맞는 이미지가 저장됩니다. 종이값은 책임지지 않습니다.',
+    save: '이미지 저장', savePrint: '인쇄용으로 저장 (80mm, 여백 없음)', viewFull: '전체 영수증', viewCard: '요약 카드', showTitle: '영수증에 표시', showHg: '잔디밭', showPh: '짧은 프롬프트 목록', showPat: '인내심 지표', showMo: '최근 30일 사용 모델', make: '내 영수증 만들기',
     bad: no => `검증 번호 ${no}가 내용과 다릅니다. 주소 속 데이터를 고쳤을 수 있습니다.`,
     receiptAlt: d => `${d.n}의 ${d.y} 연간 결산 영수증`,
     pageTitle: d => `${d.n}의 ${d.y} 연간 결산`,
@@ -177,6 +181,7 @@ async function copyLink() {
   flash($('#link'), t().copied, () => t().copyLink);
 }
 
+const controls = on => { $('#panel').hidden = !on; $('#print').hidden = !on; };      // 영수증이 있을 때만 보이는 것
 let turn = 0;   // 언어를 빠르게 바꿀 때 늦게 끝난 렌더링을 버린다
 
 async function showReceipt() {
@@ -185,7 +190,7 @@ async function showReceipt() {
   $('#viewer').hidden = false;
   const status = $('#status');
   if (!status.hidden) status.hidden = true;      // 알림은 문제가 있을 때만 보인다
-  if (!current) $('#panel').hidden = true;      // 처음 열 때만 숨긴다. 다시 그릴 때는 그대로 둔다
+  if (!current) controls(false);      // 처음 열 때만 숨긴다. 다시 그릴 때는 그대로 둔다
   try {
     if (location.hash.startsWith('#j=')) await ingest(location.hash);
     const { data, check, ok } = await decode(location.hash);
@@ -193,9 +198,10 @@ async function showReceipt() {
     if (location.hash !== ownHash) { full = structuredClone(data); for (const k of HIDES) hides[k] = false; }   // 새로 연 영수증
     const d = derive(data);
     // QR에는 언어 선택과 무관한 정식 주소만 넣는다
-    const canvas = await renderReceipt(d, base() + location.hash, check, lang, view === 'card');
+    const url = base() + location.hash;
+    const canvas = await renderReceipt(d, url, check, lang, view === 'card');
     if (mine !== turn) return;
-    current = { canvas, year: d.y };
+    current = { canvas, d, url, check };
     mount($('#receipt'), canvas, t().receiptAlt(d));
     document.title = t().pageTitle(d);
     const no = `${check.slice(0, 4)}-${check.slice(4)}`;
@@ -206,7 +212,7 @@ async function showReceipt() {
     }
     syncHides();
     syncView();
-    $('#panel').hidden = false;
+    controls(true);
   } catch (e) {
     if (mine !== turn) return;
     status.className = 'status bad';
@@ -214,7 +220,7 @@ async function showReceipt() {
     status.hidden = false;
     $('#receipt').replaceChildren();
     current = null;
-    $('#panel').hidden = true;
+    controls(false);
   }
 }
 
@@ -261,7 +267,12 @@ $('#lang').addEventListener('click', () => {
   try { localStorage.setItem('lang', lang); } catch (e) { /* 저장 실패는 무시 */ }
   route();
 });
-$('#save').addEventListener('click', () => download(current.canvas, `vibe-check-${current.year}${view === 'card' ? '-card' : ''}.png`));
+const fileName = tail => `vibe-check-${current.d.y}${view === 'card' ? '-card' : ''}${tail}.png`;
+$('#save').addEventListener('click', () => download(current.canvas, fileName('')));
+$('#print').addEventListener('click', async () => {
+  const { d, url, check } = current;
+  download(await renderReceipt(d, url, check, lang, view === 'card', true), fileName('-print'));
+});
 $('#link').addEventListener('click', copyLink);
 for (const k of HIDES) $('#hide-' + k).addEventListener('click', () => toggleHide(k));
 document.querySelectorAll('#views button').forEach(b => b.addEventListener('click', () => { view = b.dataset.view; showReceipt(); }));
