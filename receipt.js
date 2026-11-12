@@ -16,7 +16,7 @@ const PAPER = '#fdfdfb';
 const BG = '#e0e2e6';
 const FONT = '"NeoDGM Code"';
 const BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
-const SOURCES = { 'claude-code': 'CLAUDE CODE', codex: 'CODEX' };
+const TOOL_NAMES = { 'claude-code': 'Claude Code', codex: 'Codex' };
 
 const fmt = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const f1 = v => Number(v).toFixed(1);
@@ -41,8 +41,8 @@ const L = {
     short: 'Prompts of 12 characters or fewer', hangul: 'Prompts in Korean', pasted: 'Prompts with a paste',
     slash: 'Slash commands', perSession: 'Prompts per session', longest: 'Longest session',
     parallel: 'Most sessions at once', phrases: '[Top short prompts]', commands: '[Top slash commands]',
-    models: n => `MODELS, LAST ${n} DAYS`, responses: n => `of ${fmt(n)} responses`, other: 'Other',
-    patience: 'PATIENCE', correction: 'Prompts starting with "no"', profanity: 'Prompts with swearing',
+    models: n => `MODELS, LAST ${n} DAYS`, modelNote: (tool, n, many) => { const u = `${fmt(n)} ${tool === 'codex' ? 'turns' : 'responses'}`; return many ? `${TOOL_NAMES[tool]}, ${u}` : `of ${u}`; }, other: 'Other',
+    patience: 'PATIENCE', correction: 'Starting with "no" or "wait"', profanity: 'Prompts with swearing',
     profByMonth: '[Swearing by month]', worst: 'Roughest month', calmest: 'Calmest month',
     monthPct: (m, v) => `${MONTHS_EN[m - 1]} ${f1(v)}%`,
     badges: 'ACHIEVEMENTS', noBadge: ['Steady Coder', 'nothing unusual'],
@@ -65,7 +65,7 @@ const L = {
     short: '12자 이하 프롬프트 비율', hangul: '한글로 쓴 프롬프트 비율', pasted: '붙여넣기한 프롬프트 비율',
     slash: '슬래시 명령 비율', perSession: '세션당 평균 프롬프트', longest: '가장 긴 세션의 프롬프트 수',
     parallel: '동시에 사용한 최대 세션 수', phrases: '[자주 쓴 짧은 프롬프트]', commands: '[많이 쓴 슬래시 명령]',
-    models: n => `최근 ${n}일 사용 모델`, responses: n => `응답 ${fmt(n)}건 기준`, other: '기타',
+    models: n => `최근 ${n}일 사용 모델`, modelNote: (tool, n, many) => { const u = tool === 'codex' ? `턴 ${fmt(n)}개` : `응답 ${fmt(n)}건`; return many ? `${TOOL_NAMES[tool]}, ${u}` : `${u} 기준`; }, other: '기타',
     patience: '인내심 지표', correction: '"아니"로 시작한 프롬프트', profanity: '욕설이 포함된 프롬프트',
     profByMonth: '[월별 욕설 비율]', worst: '가장 험했던 달', calmest: '가장 평온했던 달',
     monthPct: (m, v) => `${m}월 ${f1(v)}%`,
@@ -273,7 +273,7 @@ function layout(pen, d, url, check) {
   const T = pen.T, ko = T === L.ko;
   const sc = d.sc || [], ph = d.ph || [];
   const range = T.range;
-  pen.center(SOURCES[d.src] || String(d.src || '').toUpperCase());
+  pen.center(d.tools.map(x => TOOL_NAMES[x].toUpperCase()).join(' + '));
   pen.gap(4);
   pen.center(T.title(d.y), FS * 2, FS * 2 + 14);
   pen.rule();
@@ -282,6 +282,7 @@ function layout(pen, d, url, check) {
   pen.row(T.issued, d.iss);
   pen.rule();
   pen.row(T.prompts, T.count(d.p), true);
+  if (d.tools.length > 1 && d.bt) for (const [tool, n] of d.bt) pen.row('  ' + TOOL_NAMES[tool], T.count(n));
   pen.row(T.sessions, T.count(d.s));
   pen.row(T.folders, T.count(d.pj));
   pen.row(T.activeDays, `${T.days(d.ad)} (${f1(d.ar)}%)`);
@@ -313,8 +314,8 @@ function layout(pen, d, url, check) {
   pen.row(T.avgLen, T.chars(d.al));
   pen.row(T.short, `${f1(d.ss)}%`);
   if (d.hs > 0) pen.row(T.hangul, `${f1(d.hs)}%`);   // 한글을 안 쓰면 줄을 뺀다
-  pen.row(T.pasted, `${f1(d.ps)}%`);
-  pen.row(T.slash, `${f1(d.sl)}%`);
+  if (d.ps != null) pen.row(T.pasted, `${f1(d.ps)}%`);     // 도구에 따라 없는 값
+  if (d.sl != null) pen.row(T.slash, `${f1(d.sl)}%`);
   pen.row(T.perSession, T.perSessionVal(d.pss));
   pen.row(T.longest, T.longestVal(d.ls));
   pen.row(T.parallel, T.count(d.mp));
@@ -327,10 +328,11 @@ function layout(pen, d, url, check) {
     for (const [k, v] of sc) pen.row('  ' + k, T.times(v));
   }
 
-  if (d.mo) {
-    pen.band(T.models(d.mo.d), T.responses(d.mo.r));
-    const name = n => (n === 'Other' ? T.other : n);
-    hbars(pen, d.mo.s.map(x => x[1]), d.mo.s.map(x => name(x[0])), v => `${f1(v)}%`, 10, 6);
+  for (const mo of d.mo) {
+    pen.band(T.models(mo.d), T.modelNote(mo.tool, mo.r, d.mo.length > 1));
+    const names = mo.s.map(x => (x[0] === 'Other' ? T.other : x[0]));
+    const cols = Math.max(10, ...names.map(n => Math.ceil(pen.width(n) / (FS / 2))));
+    hbars(pen, mo.s.map(x => x[1]), names, v => `${f1(v)}%`, cols, 6);
   }
 
   pen.band(T.patience);

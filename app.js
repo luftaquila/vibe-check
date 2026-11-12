@@ -1,15 +1,15 @@
 // vibe-check 페이지: 넘겨받은 값을 검증하고 영수증을 그린다. 데이터는 서버로 가지 않는다.
 
-const SAMPLE = {"v":1,"src":"claude-code","n":"예시","iss":"2026-11-12 18:00","p":8641,"s":666,"pj":18,"fp":"2026-01-01 00:06","bd":[160,"09-30"],"bh":[20,"10-20 00:17"],"q":[12,26,48],"d":"31003344022202423030321113103122013130001221224301402412213333441241142300412223002012204220140311000400030043231123233034033040011441402111421022433021024230343320121344030421233434130411444011040400420421101311023442400124200003202104334322334123014320004214001432131022420441124030230110204113023423244441033410420000000000000000000000000000000000000000000000000","mc":[622,598,810,569,818,1023,956,930,947,878,490,null],"h":[604,575,0,0,0,0,0,0,0,627,614,608,0,670,571,632,633,622,0,0,646,638,613,588],"w":[1426,1374,1706,1435,1007,787,906],"ld":["01:59","10-03"],"tc":274623,"al":35,"ss":35.1,"hs":89.3,"ps":8.4,"sl":8.0,"ls":160,"mp":5,"ph":[["커밋",469],["계속",453],["고마워",442],["go",435],["ㅇㅇ",415]],"sc":[["/resume",128],["/model",118],["/review",116],["/compact",113],["/btw",107]],"btw":107,"rw":0,"mo":[["claude-opus-5-5",15188],["claude-sonnet-5-5",2599],["claude-haiku-5-5",645]],"co":[677,7.8],"pf":[0,0.0],"pm":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,null]};   // 가상 기록으로 만든 예시 데이터
+const SAMPLE = {"v":1,"src":["claude-code","codex"],"n":"예시","p":8641,"bt":[["claude-code",6012],["codex",2629]],"iss":"2026-11-12 18:00","s":666,"pj":18,"fp":"2026-01-01 00:06","bd":[160,"09-30"],"bh":[20,"10-20 00:17"],"q":[12,26,48],"d":"31003344022202423030321113103122013130001221224301402412213333441241142300412223002012204220140311000400030043231123233034033040011441402111421022433021024230343320121344030421233434130411444011040400420421101311023442400124200003202104334322334123014320004214001432131022420441124030230110204113023423244441033410420000000000000000000000000000000000000000000000000","mc":[622,598,810,569,818,1023,956,930,947,878,490,null],"h":[604,575,0,0,0,0,0,0,0,627,614,608,0,670,571,632,633,622,0,0,646,638,613,588],"w":[1426,1374,1706,1435,1007,787,906],"ld":["01:59","10-03"],"tc":274623,"al":35,"ss":35.1,"hs":89.3,"ps":8.4,"sl":8.0,"ls":160,"mp":5,"ph":[["커밋",469],["계속",453],["고마워",442],["go",435],["ㅇㅇ",415]],"sc":[["/resume",128],["/model",118],["/review",116],["/compact",113],["/btw",107]],"btw":107,"rw":0,"mo":{"claude-code":[["claude-opus-5-5",15188],["claude-sonnet-5-5",2599],["claude-haiku-5-5",645]],"codex":[["gpt-6-astra",1204],["gpt-6-sol",96]]},"co":[677,7.8],"pf":[0,0.0],"pm":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,null]};   // 가상 기록으로 만든 예시 데이터
 const $ = s => document.querySelector(s);
 const base = () => location.origin + location.pathname;
 
 const UI = {
   en: {
-    tagline: 'Your year with a coding agent, printed as a receipt. Works with Claude Code for now.',
+    tagline: 'Your year with a coding agent, printed as a receipt. Works with Claude Code and Codex.',
     howTitle: 'How it works',
-    how1: 'Copy the prompt below and paste it into Claude Code.',
-    how2: 'Give it a nickname. Claude counts up your history on your own computer and sends only the numbers here.',
+    how1: 'Copy the prompt below and paste it into Claude Code or Codex.',
+    how2: 'Answer its questions. If you use both tools, it can add them up into one receipt. It counts your history on your own computer and sends only the numbers here.',
     how3: 'Scan the QR code at the bottom to open the same receipt again.',
     lexicon: 'Your agent picks the swear words to look for in the languages you use, so those numbers can differ from one person to the next.',
     promptTitle: 'Prompt', copy: 'Copy', copied: 'Copied', selected: 'Press Ctrl+C to copy',
@@ -39,15 +39,15 @@ const UI = {
     copyLink: 'Copy link',
   },
   ko: {
-    tagline: '코딩 에이전트와 보낸 1년을 영수증 한 장으로 뽑아 드립니다. 지금은 Claude Code만 됩니다.',
+    tagline: '코딩 에이전트와 보낸 1년을 영수증 한 장으로 뽑아 드립니다. Claude Code와 Codex를 지원합니다.',
     howTitle: '만드는 법',
-    how1: '아래 프롬프트를 복사해 Claude Code에 붙여 넣습니다.',
-    how2: '닉네임을 알려 주면 Claude가 내 컴퓨터에서 기록을 세어 숫자만 이 페이지로 보냅니다.',
+    how1: '아래 프롬프트를 복사해 Claude Code나 Codex에 붙여 넣습니다.',
+    how2: '질문에 답합니다. 두 도구를 다 쓰면 합쳐서 영수증 한 장으로 만들 수 있습니다. 에이전트가 내 컴퓨터에서 기록을 세어 숫자만 이 페이지로 보냅니다.',
     how3: '영수증 맨 아래 QR을 찍으면 같은 영수증이 다시 열립니다.',
     lexicon: '욕설 목록은 에이전트가 내가 쓰는 언어에 맞춰 직접 만듭니다. 그래서 이 수치는 사람마다 기준이 조금 다를 수 있습니다.',
     promptTitle: '프롬프트', copy: '복사', copied: '복사됨', selected: 'Ctrl+C로 복사해 주세요',
     promptLoading: '불러오는 중', promptFail: '프롬프트를 불러오지 못했습니다. GitHub의 prompt.md에서 볼 수 있습니다.',
-    promptHead: 'Claude Code 연간 결산 영수증 생성.\n\n- 닉네임(20자 이내, 한글이나 영문), 연도(기본값: 올해), 프롬프트에 쓰는 언어 질문. 답을 받기 전 진행 금지.\n- 아래 규칙(영문)대로 이 컴퓨터에서 집계. 결과는 JSON 하나.\n- 규칙의 Delivery 방법대로 영수증 페이지 열기.\n- 보고는 영수증 주소 한 줄. 해석, 칭찬, 요약 금지.',
+    promptHead: '코딩 에이전트 연간 결산 영수증 생성.\n\n- 이 컴퓨터에 기록 파일이 있는 도구 확인 (규칙의 Input 참고). 아직 파일을 읽지 말 것.\n- 네 가지 질문 후 답을 받기 전 진행 금지: 닉네임(20자 이내, 한글이나 영문), 연도(기본값: 올해), 프롬프트에 쓰는 언어, 찾은 도구 중 포함할 것(기본값: 전부).\n- 아래 규칙(영문)대로 이 컴퓨터에서 집계. 결과는 JSON 하나.\n- 규칙의 Delivery 방법대로 영수증 페이지 열기.\n- 보고는 영수증 주소 한 줄. 해석, 칭찬, 요약 금지.',
     dataTitle: '내 기록은 어디로 가나요',
     data1: '기록은 내 컴퓨터에서만 세고, 영수증에는 자주 쓴 짧은 프롬프트 5개 말고는 내가 쓴 문장이 들어가지 않습니다.',
     data2: '주소나 QR을 받은 사람은 영수증 내용을 볼 수 있습니다.',
@@ -84,7 +84,9 @@ const t = () => UI[lang];
 
 function applyLang() {
   document.documentElement.lang = lang;
-  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t()[el.dataset.i18n]; });
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t()[el.dataset.i18n];
+  });
   $('#lang').setAttribute('aria-checked', String(lang === 'ko'));
 }
 

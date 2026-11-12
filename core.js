@@ -27,10 +27,12 @@ async function checkOf(raw) {
   return [...h].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 8).toUpperCase();
 }
 
-const REQUIRED = ['n', 'p', 's', 'pj', 'fp', 'bd', 'bh', 'q', 'd', 'mc', 'h', 'w', 'tc', 'al', 'ss', 'hs', 'ps', 'sl',
-  'ls', 'mp', 'btw', 'rw', 'co', 'pf', 'pm'];
+const REQUIRED = ['n', 'p', 's', 'pj', 'fp', 'bd', 'bh', 'q', 'd', 'mc', 'h', 'w', 'tc', 'al', 'ss', 'hs',
+  'ls', 'mp', 'co', 'pf', 'pm'];
 const LENGTHS = { bd: 2, bh: 2, q: 3, mc: 12, h: 24, w: 7, co: 2, pf: 2, pm: 12 };
-const NUMBERS = ['p', 's', 'pj', 'tc', 'al', 'ss', 'hs', 'ps', 'sl', 'ls', 'mp', 'btw', 'rw'];
+const NUMBERS = ['p', 's', 'pj', 'tc', 'al', 'ss', 'hs', 'ls', 'mp'];
+const OPTIONAL_NUMBERS = ['ps', 'sl', 'btw', 'rw'];      // 도구에 따라 없는 값 (Codex에는 붙여넣기 표시와 슬래시 명령 기록이 없다)
+const TOOLS = ['claude-code', 'codex'];
 const STAMP = /^\d{4}-\d\d-\d\d \d\d:\d\d$/;
 const MAX_HANDOFF = 20000;      // 넘겨받는 값의 길이 상한 (정상 값은 2,000자 안팎)
 
@@ -42,6 +44,12 @@ const isStr = (v, max) => typeof v === 'string' && [...v].length <= max;
 // [[문자열, 숫자], ...] 형태의 목록. 남이 만든 주소를 열 때 영수증이 끝없이 길어지지 않게 개수와 길이를 막는다
 const isList = (v, maxRows, maxLen) => Array.isArray(v) && v.length <= maxRows
   && v.every(r => Array.isArray(r) && r.length === 2 && isStr(r[0], maxLen) && isNum(r[1]));
+
+// 영수증에 담긴 도구 목록. 예전 형식(문자열 하나)도 받는다
+function toolsOf(d) {
+  if (d.src == null) return ['claude-code'];
+  return Array.isArray(d.src) ? d.src : [d.src];
+}
 
 function validate(d) {
   const bad = k => new ReceiptError('eInvalid', k);
@@ -55,6 +63,10 @@ function validate(d) {
   if (typeof d.n !== 'string' || !d.n.trim() || [...d.n].length > 20 || !PRINTABLE.test(d.n)) throw new ReceiptError('eNick');
   if (typeof d.fp !== 'string' || !STAMP.test(d.fp)) throw bad('fp');
   for (const k of NUMBERS) if (!isNum(d[k])) throw bad(k);
+  for (const k of OPTIONAL_NUMBERS) if (d[k] != null && !isNum(d[k])) throw bad(k);
+  const tools = toolsOf(d);
+  if (!tools.length || tools.length > TOOLS.length || new Set(tools).size !== tools.length || !tools.every(x => TOOLS.includes(x))) throw bad('src');
+  if (d.bt != null && !(isList(d.bt, TOOLS.length, 20) && d.bt.every(r => tools.includes(r[0])))) throw bad('bt');
   if (d.p < 1) throw bad('p');
   for (const k of ['q', 'h', 'w', 'co', 'pf']) if (!d[k].every(isNum)) throw bad(k);
   for (const k of ['mc', 'pm']) if (!d[k].every(v => v === null || isNum(v))) throw bad(k);
@@ -62,7 +74,10 @@ function validate(d) {
   if (d.ld != null && !(Array.isArray(d.ld) && d.ld.length === 2 && d.ld.every(v => isStr(v, 8)))) throw bad('ld');
   if (d.ph != null && !(isList(d.ph, 5, 12) && d.ph.every(r => PRINTABLE.test(r[0])))) throw bad('ph');
   if (d.sc != null && !isList(d.sc, 5, 40)) throw bad('sc');
-  if (d.mo != null && !isList(d.mo, 30, 80)) throw bad('mo');
+  if (d.mo != null) {      // 도구별 목록. 도구가 하나면 목록만 넘겨도 받는다
+    const lists = Array.isArray(d.mo) ? [d.mo] : Object.entries(d.mo).map(([k, v]) => (tools.includes(k) ? v : null));
+    if (!lists.every(v => isList(v, 30, 80))) throw bad('mo');
+  }
 }
 
 // 에이전트가 넘긴 값: #j=<base64url JSON>
@@ -117,7 +132,7 @@ function modelName(id) {
   if (m) return m[1][0].toUpperCase() + m[1].slice(1) + ' ' + m[2] + (m[3] ? '.' + m[3] : '');
   m = /claude-(\d+)(?:-(\d))?-([a-z]+)/.exec(id);
   if (m) return m[3][0].toUpperCase() + m[3].slice(1) + ' ' + m[1] + (m[2] ? '.' + m[2] : '');
-  return id.slice(0, 10);   // 이름 칸 폭(10자)에 맞춘다
+  return id.slice(0, 18);   // 모르는 형식은 그대로, 이름 칸 최대 폭(18자)까지
 }
 
 function derive(d) {
@@ -145,16 +160,20 @@ function derive(d) {
   const ad = active.length || 1;
   const months = d.pm.map((v, i) => [i + 1, v, d.mc[i]]).filter(m => m[1] !== null && m[2] >= 50);
   const pickMonth = sign => months.reduce((b, m) => (!b || sign * (m[1] - b[1]) > 0 || (m[1] === b[1] && m[2] > b[2]) ? m : b), null);
-  let mo = null;
-  if (Array.isArray(d.mo) && d.mo.length) {
+  // 모델 비율은 도구별로 따로 낸다 (Claude Code는 응답 수, Codex는 턴 수라 단위가 다르다)
+  const tools = toolsOf(d);
+  const byTool = d.mo == null ? {} : Array.isArray(d.mo) ? { [tools[0]]: d.mo } : d.mo;
+  const mo = [];
+  for (const tool of tools) {
     const by = {};
-    for (const [id, n] of d.mo) by[modelName(id)] = (by[modelName(id)] || 0) + n;
+    for (const [id, n] of byTool[tool] || []) by[modelName(id)] = (by[modelName(id)] || 0) + n;
     const rows = Object.entries(by).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
     const total = sum(rows.map(r => r[1]));
+    if (!total) continue;
     const s = rows.slice(0, 4).map(([k, n]) => [k, pct(n, total)]);
     const rest = pct(sum(rows.slice(4).map(r => r[1])), total);
     if (rest >= 0.1) s.push(['Other', rest]);
-    if (total) mo = { d: 30, r: total, s };
+    mo.push({ tool, d: 30, r: total, s });
   }
   const wm = pickMonth(1), cm = pickMonth(-1);
   return {
@@ -162,10 +181,10 @@ function derive(d) {
     ar: pct(ad, end - first + 1), pd: Math.round(d.p / ad), pss: Math.round(d.p / (d.s || 1) * 10) / 10,
     st: [st[0], md(st[1]), md(st[2])], gp: gp && [gp[0], md(gp[1]), md(gp[2])],
     ns: pct(sum(d.h.slice(0, 6)), d.p), mrs: pct(sum(d.h.slice(6, 9)), d.p), ws: pct(d.w[5] + d.w[6], d.p),
-    wm: wm && [wm[0], wm[1]], cm: cm && [cm[0], cm[1]], mo,
+    wm: wm && [wm[0], wm[1]], cm: cm && [cm[0], cm[1]], mo, tools,
   };
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { FORMAT_VERSION, ReceiptError, validate, parseHandoff, stamp, encode, decode, modelName, derive };
+  module.exports = { FORMAT_VERSION, TOOLS, ReceiptError, toolsOf, validate, parseHandoff, stamp, encode, decode, modelName, derive };
 }

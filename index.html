@@ -63,7 +63,7 @@ button, .btn {
 }
 button:hover, .btn:hover { background: var(--ink); color: var(--paper); }
 button:focus-visible, .btn:focus-visible, a:focus-visible { outline: 3px solid #3a6fd8; outline-offset: 2px; }
-.prompt-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.prompt-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 pre.prompt {
   margin: 0; padding: 16px; background: var(--paper); border: 1px solid var(--line);
   white-space: pre-wrap; word-break: break-word; font: 14px/1.6 "NeoDGM Code", ui-monospace, monospace;
@@ -87,7 +87,7 @@ footer { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; g
       <h1>vibe-check</h1>
       <div class="lang"><span aria-hidden="true">EN</span><button id="lang" type="button" role="switch" aria-checked="false" aria-label="한국어"><span class="knob"></span></button><span aria-hidden="true">한국어</span></div>
     </div>
-    <p data-i18n="tagline">Your year with a coding agent, printed as a receipt. Works with Claude Code for now.</p>
+    <p data-i18n="tagline">Your year with a coding agent, printed as a receipt. Works with Claude Code and Codex.</p>
   </header>
 
   <section id="viewer" hidden>
@@ -111,7 +111,8 @@ footer { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; g
       <p class="note" data-i18n="lexicon"></p>
     </section>
     <section>
-      <div class="prompt-head"><h2 data-i18n="promptTitle">Prompt</h2><button id="copy" type="button" data-i18n="copy">Copy</button></div>
+      <div class="prompt-head"><h2 data-i18n="promptTitle">Prompt</h2>
+        <button id="copy" type="button" data-i18n="copy">Copy</button></div>
       <pre id="prompt" class="prompt"></pre>
     </section>
     <section>
