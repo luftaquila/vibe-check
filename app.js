@@ -1,6 +1,5 @@
 // vibe-check 페이지: 넘겨받은 값을 검증하고 영수증을 그린다. 데이터는 서버로 가지 않는다.
 
-const SAMPLE = {"v":1,"src":["claude-code","codex"],"n":"예시","p":8641,"bt":[["claude-code",6012],["codex",2629]],"iss":"2026-11-12 18:00","s":666,"pj":18,"fp":"2026-01-01 00:06","bd":[160,"09-30"],"bh":[20,"10-20 00:17"],"q":[12,26,48],"d":"31003344022202423030321113103122013130001221224301402412213333441241142300412223002012204220140311000400030043231123233034033040011441402111421022433021024230343320121344030421233434130411444011040400420421101311023442400124200003202104334322334123014320004214001432131022420441124030230110204113023423244441033410420000000000000000000000000000000000000000000000000","mc":[622,598,810,569,818,1023,956,930,947,878,490,null],"h":[604,575,0,0,0,0,0,0,0,627,614,608,0,670,571,632,633,622,0,0,646,638,613,588],"w":[1426,1374,1706,1435,1007,787,906],"ld":["01:59","10-03"],"tc":274623,"al":35,"ss":35.1,"hs":89.3,"ps":8.4,"sl":8.0,"ls":160,"mp":5,"ph":[["커밋",469],["계속",453],["고마워",442],["go",435],["ㅇㅇ",415]],"sc":[["/resume",128],["/model",118],["/review",116],["/compact",113],["/btw",107]],"btw":107,"rw":0,"mo":{"claude-code":[["claude-opus-5-5",15188],["claude-sonnet-5-5",2599],["claude-haiku-5-5",645]],"codex":[["gpt-6-astra",1204],["gpt-6-sol",96]]},"co":[677,7.8],"pf":[0,0.0],"pm":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,null],"p30":[["claude-code",702],["codex",318]]};   // 가상 기록으로 만든 예시 데이터
 const $ = s => document.querySelector(s);
 const base = () => location.origin + location.pathname;
 
@@ -18,12 +17,10 @@ const UI = {
     dataTitle: 'Where your data goes',
     data1: 'Your history is counted only on your computer. What you typed stays off the receipt, apart from your five most used short prompts.',
     data2: 'Anyone you give the URL or QR code to can read the receipt.',
-    sampleTitle: 'Sample', save: 'Save image', make: 'Make my receipt',
+    save: 'Save image', make: 'Make my receipt',
     font: 'Font: NeoDunggeunmo Code (SIL OFL 1.1)', qr: 'QR: qrcode-generator (MIT)',
-    drawing: 'Printing your receipt.',
-    ok: no => `Check number ${no} matches. Nothing has been edited.`,
     bad: no => `Check number ${no} does not match. The data in this URL may have been edited.`,
-    receiptAlt: d => `${d.n}'s ${d.y} receipt`, sampleAlt: 'Sample receipt',
+    receiptAlt: d => `${d.n}'s ${d.y} receipt`,
     pageTitle: d => `${d.n}'s ${d.y} year in review`,
     eFormat: 'This does not look like a receipt URL. It may have been cut off.',
     eVersion: v => `This receipt is version ${v}, which this page cannot read.`,
@@ -47,16 +44,14 @@ const UI = {
     lexicon: '욕설 목록은 에이전트가 내가 쓰는 언어에 맞춰 직접 만듭니다. 그래서 이 수치는 사람마다 기준이 조금 다를 수 있습니다.',
     promptTitle: '프롬프트', copy: '복사', copied: '복사됨', selected: 'Ctrl+C로 복사해 주세요',
     promptLoading: '불러오는 중', promptFail: '프롬프트를 불러오지 못했습니다. GitHub의 prompt.md에서 볼 수 있습니다.',
-    promptHead: '코딩 에이전트 연간 결산 영수증 생성.\n\n- 이 컴퓨터에 기록 파일이 있는 도구 확인 (규칙의 Input 참고). 아직 파일을 읽지 말 것.\n- 네 가지 질문 후 답을 받기 전 진행 금지: 닉네임(20자 이내, 한글이나 영문), 연도(기본값: 올해), 프롬프트에 쓰는 언어, 찾은 도구 중 포함할 것(기본값: 전부).\n- 아래 규칙(영문)대로 이 컴퓨터에서 집계. 결과는 JSON 하나.\n- 규칙의 Delivery 방법대로 영수증 페이지 열기.\n- 보고는 영수증 주소 한 줄. 해석, 칭찬, 요약 금지.',
+    promptHead: '코딩 에이전트 연간 결산 영수증 생성.\n\n- 이 컴퓨터에 기록 파일이 있는 도구 확인 (규칙의 Input 참고). 아직 파일을 읽지 말 것.\n- 네 가지 질문 후 답을 받기 전 진행 금지: 닉네임(20자 이내, 한글이나 영문), 연도(기본값: 올해), 프롬프트에 쓰는 언어, 찾은 도구 중 포함할 것(기본값: 전부).\n- 아래 규칙(영문)대로 이 컴퓨터에서 집계. 결과는 JSON 하나.\n- 규칙의 Delivery 방법대로 영수증 페이지 열기.\n- 보고는 한 줄: 영수증을 열었다는 것, 열지 못했으면 vibe-check-url.txt 경로. 주소를 직접 옮겨 적지 말 것. 해석, 칭찬, 요약 금지.',
     dataTitle: '내 기록은 어디로 가나요',
     data1: '기록은 내 컴퓨터에서만 세고, 영수증에는 자주 쓴 짧은 프롬프트 5개 말고는 내가 쓴 문장이 들어가지 않습니다.',
     data2: '주소나 QR을 받은 사람은 영수증 내용을 볼 수 있습니다.',
-    sampleTitle: '예시', save: '이미지 저장', make: '내 영수증 만들기',
+    save: '이미지 저장', make: '내 영수증 만들기',
     font: '글꼴 Neo둥근모 Code (SIL OFL 1.1)', qr: 'QR qrcode-generator (MIT)',
-    drawing: '영수증을 뽑는 중입니다.',
-    ok: no => `검증 번호 ${no} 일치. 고친 곳이 없습니다.`,
     bad: no => `검증 번호 ${no}가 내용과 다릅니다. 주소 속 데이터를 고쳤을 수 있습니다.`,
-    receiptAlt: d => `${d.n}의 ${d.y} 연간 결산 영수증`, sampleAlt: '예시 영수증',
+    receiptAlt: d => `${d.n}의 ${d.y} 연간 결산 영수증`,
     pageTitle: d => `${d.n}의 ${d.y} 연간 결산`,
     eFormat: '영수증 주소가 아닙니다. 주소가 중간에 잘렸을 수 있습니다.',
     eVersion: v => `버전 ${v} 영수증은 이 페이지에서 열 수 없습니다.`,
@@ -148,8 +143,7 @@ async function showReceipt() {
   $('#landing').hidden = true;
   $('#viewer').hidden = false;
   const status = $('#status');
-  status.className = 'status';
-  status.textContent = t().drawing;
+  status.hidden = true;            // 알림은 문제가 있을 때만 보인다
   $('#save').hidden = true;
   $('#link').hidden = true;
   try {
@@ -157,19 +151,24 @@ async function showReceipt() {
     const { data, check, ok } = await decode(location.hash);
     if (!explicit() && pick(data.lg) && data.lg !== lang) { lang = data.lg; applyLang(); }
     // QR에는 언어 선택과 무관한 정식 주소만 넣는다
+    data.y = +data.fp.slice(0, 4);      // 제목과 파일 이름에 쓰는 연도
     const canvas = await renderReceipt(data, base() + location.hash, check, lang);
     if (mine !== turn) return;
     mount($('#receipt'), canvas, t().receiptAlt(data));
     document.title = t().pageTitle(data);
     const no = `${check.slice(0, 4)}-${check.slice(4)}`;
-    status.className = ok ? 'status ok' : 'status bad';
-    status.textContent = ok ? t().ok(no) : t().bad(no);
+    if (!ok) {
+      status.className = 'status bad';
+      status.textContent = t().bad(no);
+      status.hidden = false;
+    }
     saveButton(canvas, data);
     linkButton();
   } catch (e) {
     if (mine !== turn) return;
     status.className = 'status bad';
     status.textContent = errText(e);
+    status.hidden = false;
     $('#receipt').replaceChildren();
   }
 }
@@ -204,10 +203,6 @@ async function showLanding() {
     }
     setTimeout(() => { $('#copy').textContent = t().copy; }, 2000);
   };
-  const sample = { ...SAMPLE, lg: lang, n: lang === 'ko' ? '예시' : 'sample' };
-  const { hash, check } = await encode(sample);
-  const canvas = await renderReceipt(sample, base() + hash, check, lang);
-  if (mine === turn) mount($('#sample'), canvas, t().sampleAlt);
 }
 
 function route() {

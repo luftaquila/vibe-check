@@ -4,7 +4,7 @@ Generate my coding agent year-in-review receipt.
 - Ask me four things, and do not continue until I answer: a nickname (20 characters max, English or Korean), the year (default: this year), the languages I write prompts in, and which of the tools you found to include (default: all of them).
 - Aggregate on this computer by the rules below. The result is one JSON object.
 - Open the receipt page as described under Delivery.
-- Report the receipt URL in one line. No interpretation, praise, or summary.
+- Report in one line that the receipt is open, or, if the browser could not be opened, the path of `vibe-check-url.txt`. No interpretation, praise, or summary.
 
 # Rules (format version 1)
 
@@ -43,7 +43,7 @@ Generate my coding agent year-in-review receipt.
 | `bd` | day with the most prompts `[count, MM-DD]` |
 | `bh` | the 60-minute window with the most prompts `[count, MM-DD HH:MM of its first prompt]`. A window spans less than 60 minutes from its first prompt |
 | `q` | quartile boundaries of prompts per day `[q1, q2, q3]` (see below) |
-| `d` | a string with one character per day from January 1 to December 31. 0 = no prompts, 1 = up to `q1`, 2 = up to `q2`, 3 = up to `q3`, 4 = above. Days after the end date are 0 |
+| `d` | one character per calendar day of the year: exactly 365 characters (366 in a leap year), where character 0 is January 1 and the last is December 31. No padding to align weekdays. 0 = no prompts, 1 = up to `q1`, 2 = up to `q2`, 3 = up to `q3`, 4 = above. Days after the end date are 0 |
 | `mc` | prompts per month, 12 values. `null` for months before the first prompt's month or after the end date's month |
 | `h` | prompts per hour, 24 values (0 to 23) |
 | `w` | prompts per weekday, 7 values (Monday to Sunday) |
@@ -66,7 +66,6 @@ Only when Claude Code is chosen (leave these out otherwise):
 | Key | Value |
 |---|---|
 | `ps` | share of Claude Code prompts with a paste: `pastedContents` is not empty, or the text contains `[Pasted text` or `[Image` |
-| `sl` | share of Claude Code prompts that are slash commands |
 | `sc` | top slash commands `[[name, count], ...]`, up to 5. Count descending, then name |
 | `btw` | count of `/btw` |
 | `rw` | count of `/rewind` |
@@ -101,6 +100,5 @@ Only when Claude Code is chosen (leave these out otherwise):
 - Count only what falls within the last 30 days. Keep model ids as they are
 
 ## Delivery
-- Convert the JSON: UTF-8 → base64url
-- Open `https://luftaquila.github.io/vibe-check/#j=<base64url>` in the browser: `open` (macOS), `xdg-open` (Linux), `Start-Process '<url>'` in PowerShell (Windows)
-- If it cannot be opened, print the URL as is
+- In the same script: convert the JSON (UTF-8) to base64url, build `https://luftaquila.github.io/vibe-check/#j=<base64url>`, save it to `vibe-check-url.txt` in the current folder, and open it in the browser: `open` (macOS), `xdg-open` (Linux), `Start-Process` in PowerShell (Windows)
+- Never type the URL yourself, not even to report it. It is long, and one changed character breaks it

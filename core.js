@@ -27,7 +27,7 @@ const LENGTHS = { bd: 2, bh: 2, q: 3, mc: 12, h: 24, w: 7, co: 2, pf: 2, pm: 12 
 const COUNTS = ['p', 's', 'pj', 'tc', 'al', 'ls', 'mp'];
 const SHARES = ['ss', 'hs'];
 const OPTIONAL_COUNTS = ['btw', 'rw'];
-const OPTIONAL_SHARES = ['ps', 'sl'];      // 도구에 따라 없는 값 (Codex에는 붙여넣기 표시와 슬래시 명령 기록이 없다)
+const OPTIONAL_SHARES = ['ps'];      // 도구에 따라 없는 값 (Codex에는 붙여넣기 표시와 슬래시 명령 기록이 없다)
 const TOOLS = ['claude-code', 'codex'];
 const STAMP = /^2\d{3}-\d\d-\d\d \d\d:\d\d$/;
 const MD = /^\d\d-\d\d$/, HM = /^\d\d:\d\d$/, MDHM = /^\d\d-\d\d \d\d:\d\d$/;
@@ -125,7 +125,7 @@ const hmToNum = s => +s.slice(0, 2) * 60 + +s.slice(3, 5);
 const numToHm = n => `${two(Math.floor(n / 60))}:${two(n % 60)}`;
 const gridBytes = len => Math.ceil(len * Math.log2(5) / 8);
 const r1 = x => Math.round(x * 10) / 10;
-const EXTRAS = ['ps', 'sl', 'btw', 'rw', 'sc'];      // Claude Code를 골랐을 때만 있는 값
+const EXTRAS = ['ps', 'btw', 'rw', 'sc'];      // Claude Code를 골랐을 때만 있는 값
 
 // 값의 모양을 하나로 맞춘다. 주소에 담기는 것은 이 모양이다
 function normalize(d) {
@@ -142,7 +142,7 @@ function normalize(d) {
     p30: d.p30 ? tools.map(x => [x, d.p30.find(r => r[0] === x)[1]]) : null,
     co: [d.co[0], r1(d.co[1])], pf: [d.pf[0], r1(d.pf[1])], pm: d.pm.map(v => (v === null ? null : r1(v))),
   };
-  for (const k of EXTRAS) if (d[k] != null) out[k] = k === 'ps' || k === 'sl' ? r1(d[k]) : d[k];
+  for (const k of EXTRAS) if (d[k] != null) out[k] = k === 'ps' ? r1(d[k]) : d[k];
   out.iss = d.iss;
   return out;
 }
@@ -182,7 +182,6 @@ function pack(d) {
   int(d.co[0]); share(d.co[1]); int(d.pf[0]); share(d.pf[1]);
   masked(d.pm, share);
   if (d.ps != null) share(d.ps);
-  if (d.sl != null) share(d.sl);
   if (d.btw != null) int(d.btw);
   if (d.rw != null) int(d.rw);
   if (d.sc != null) list(d.sc);
@@ -228,10 +227,9 @@ function unpack(bytes) {
   d.co = [int(), share()]; d.pf = [int(), share()];
   d.pm = masked(12, share);
   if (extras & 1) d.ps = share();
-  if (extras & 2) d.sl = share();
-  if (extras & 4) d.btw = int();
-  if (extras & 8) d.rw = int();
-  if (extras & 16) d.sc = list();
+  if (extras & 2) d.btw = int();
+  if (extras & 4) d.rw = int();
+  if (extras & 8) d.sc = list();
   d.iss = iss;
   if (at !== bytes.length) throw new Error('trailing');
   return d;

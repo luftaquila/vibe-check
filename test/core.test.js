@@ -64,7 +64,7 @@ test('주소: 두 도구를 합친 값, Codex만 고른 값, 윤년, 값이 없�
   both.mo = { 'claude-code': [['claude-opus-5-5', 123456]], codex: [['gpt-6-astra', 7]] }; both.p30 = [['codex', 0], ['claude-code', 1234]];
   const codex = clone();
   codex.src = ['codex']; codex.mo = null; codex.ld = null; codex.ph = [];
-  for (const k of ['ps', 'sl', 'sc', 'btw', 'rw']) delete codex[k];
+  for (const k of ['ps', 'sc', 'btw', 'rw']) delete codex[k];
   const leap = clone();
   leap.d = leap.d + '4'; leap.tc = 2 ** 40; leap.pm[2] = 0; leap.mc[11] = 0;
   for (const d of [both, codex, leap]) {
@@ -100,7 +100,7 @@ test('validate: 정상 값은 통과한다', () => validate(clone()));
 test('validate: Codex만 고르면 붙여넣기와 슬래시 항목이 없어도 통과한다', () => {
   const d = clone();
   d.src = ['codex'];
-  for (const k of ['ps', 'sl', 'sc', 'btw', 'rw']) delete d[k];
+  for (const k of ['ps', 'sc', 'btw', 'rw']) delete d[k];
   validate(d);
   assert.deepEqual(derive(d).tools, ['codex']);
 });
@@ -136,7 +136,7 @@ test('derive: 두 도구의 모델은 최근 30일 프롬프트 비중으로 가
 
 test('prompt.md: 두 도구의 기록 위치와 영수증 언어 줄이 있다', () => {
   const text = fs.readFileSync(path.join(__dirname, '..', 'prompt.md'), 'utf8');
-  for (const s of ['~/.claude/history.jsonl', '~/.codex/history.jsonl', '| `lg` | `"en"` |', '# Rules', '| `bt` |', '| `p30` |'])
+  for (const s of ['~/.claude/history.jsonl', '~/.codex/history.jsonl', '| `lg` | `"en"` |', '# Rules', '| `bt` |', '| `p30` |', 'No padding to align weekdays', 'Never type the URL yourself'])
     assert.ok(text.includes(s), s);
   assert.doesNotMatch(text, /<!--/);
 });

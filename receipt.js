@@ -34,19 +34,19 @@ const L = {
     grass: 'ACTIVITY', perDay: 'Prompts per day', orMore: n => `${n}+`,
     wdShort: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'], wd: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], wdCols: 3,
     month: i => MONTHS_EN[i], hourAxis: h => String(h).padStart(2, '0'), hourFull: h => `${h}:00`,
-    range: (a, b) => `${a} to ${b}`, from: x => `from ${x}`, longestVal: n => `${fmt(n)} prompts`, perSessionVal: v => f1(v),
+    range: (a, b) => `${a} ~ ${b}`, from: x => `${x}~`, longestVal: n => `${fmt(n)} prompts`, perSessionVal: v => f1(v),
     byMonth: 'PROMPTS BY MONTH', byHour: 'PROMPTS BY HOUR', byWeekday: 'PROMPTS BY WEEKDAY',
     peakHour: 'Busiest time of day', night: 'Midnight to 6 AM', latest: 'Latest night', weekend: 'Weekends',
     style: 'HOW YOU WORK', typed: 'Characters typed', avgLen: 'Average prompt length',
     short: 'Prompts of 12 characters or fewer', hangul: 'Prompts in Korean', pasted: 'Prompts with a paste',
-    slash: 'Slash commands', perSession: 'Prompts per session', longest: 'Longest session',
+    perSession: 'Prompts per session', longest: 'Longest session',
     parallel: 'Most sessions at once', phrases: '[Top short prompts]', commands: '[Top slash commands]',
-    models: n => `MODELS, LAST ${n} DAYS`, modelNote: (unit, n) => `of ${fmt(n)} ${unit}`, other: 'Other',
+    models: n => `MODELS, LAST ${n} DAYS`, other: 'Other',
     patience: 'PATIENCE', correction: 'Prompts starting with "no"', profanity: 'Prompts with swearing',
     profByMonth: '[Swearing by month]', worst: 'Roughest month', calmest: 'Calmest month',
     monthPct: (m, v) => `${MONTHS_EN[m - 1]} ${f1(v)}%`,
-    badges: 'ACHIEVEMENTS', noBadge: ['Steady Coder', 'nothing unusual'],
-    total: 'TOTAL', check: 'Check no.', thanks: 'THANK YOU, COME AGAIN',
+    badges: 'ACHIEVEMENTS', noBadge: ['Just Browsing', 'nothing unusual'],
+    total: 'TOTAL', thanks: 'THANK YOU, COME AGAIN',
   },
   ko: {
     title: y => `${y} 연간 결산`,
@@ -63,34 +63,53 @@ const L = {
     peakHour: '가장 많이 쓴 시간대', night: '새벽 0시 ~ 6시 비중', latest: '새벽에 가장 늦게 보낸 시각', weekend: '주말 비중',
     style: '일하는 방식', typed: '직접 친 글자 수', avgLen: '프롬프트당 평균 글자 수',
     short: '12자 이하 프롬프트 비율', hangul: '한글로 쓴 프롬프트 비율', pasted: '붙여넣기한 프롬프트 비율',
-    slash: '슬래시 명령 비율', perSession: '세션당 평균 프롬프트', longest: '가장 긴 세션의 프롬프트 수',
+    perSession: '세션당 평균 프롬프트', longest: '가장 긴 세션의 프롬프트 수',
     parallel: '동시에 사용한 최대 세션 수', phrases: '[자주 쓴 짧은 프롬프트]', commands: '[많이 쓴 슬래시 명령]',
-    models: n => `최근 ${n}일 사용 모델`, modelNote: (unit, n) => ({ prompts: `프롬프트 ${fmt(n)}개 기준`, turns: `턴 ${fmt(n)}개 기준`, responses: `응답 ${fmt(n)}건 기준` })[unit], other: '기타',
+    models: n => `최근 ${n}일 사용 모델`, other: '기타',
     patience: '인내심 지표', correction: '"아니"로 시작한 프롬프트', profanity: '욕설이 포함된 프롬프트',
     profByMonth: '[월별 욕설 비율]', worst: '가장 험했던 달', calmest: '가장 평온했던 달',
     monthPct: (m, v) => `${m}월 ${f1(v)}%`,
-    badges: '획득 칭호', noBadge: ['꾸준한 개발자', '해당 조건 없음'],
-    total: '합계', check: '검증 번호', thanks: '이용해 주셔서 감사합니다',
+    badges: '획득 칭호', noBadge: ['평범한 손님', '해당 조건 없음'],
+    total: '합계', thanks: '이용해 주셔서 감사합니다',
   },
 };
 
 // 칭호 조건표. 조건을 만족하는 것을 이 순서대로 모두 찍는다. [조건, 영문 이름과 근거, 한글 이름과 근거]
+const afterHours = d => Math.round((d.h.slice(18).reduce((a, b) => a + b, 0) + d.h.slice(0, 6).reduce((a, b) => a + b, 0)) / d.p * 1000) / 10;
+const minorTool = d => (d.tools.length > 1 && d.bt ? d.bt.map(([tool, n]) => [tool, Math.round(n / d.p * 1000) / 10]).sort((a, b) => a[1] - b[1])[0] : null);
+const cram = d => Math.round(d.bd[0] / d.pd * 10) / 10;
 const BADGES = [
-  [d => d.ns >= 15, ['Night Owl', d => `late night ${f1(d.ns)}% (15%+)`], ['올빼미', d => `새벽 ${f1(d.ns)}% (15% 이상)`]],
-  [d => d.mrs >= 15, ['Early Bird', d => `morning ${f1(d.mrs)}% (15%+)`], ['아침형', d => `아침 ${f1(d.mrs)}% (15% 이상)`]],
-  [d => d.pf[1] >= 3, ['Hothead', d => `swearing ${f1(d.pf[1])}% (3%+)`], ['다혈질', d => `욕설 ${f1(d.pf[1])}% (3% 이상)`]],
+  // 시간
+  [d => d.ns >= 15, ['Night Owl', d => `late night ${f1(d.ns)}% (15%+)`], ['올빼미', d => `새벽 ${f1(d.ns)}% (15%+)`]],
+  [d => d.mrs >= 15, ['Early Bird', d => `morning ${f1(d.mrs)}% (15%+)`], ['미라클 모닝', d => `아침 ${f1(d.mrs)}% (15%+)`]],
+  [d => d.ld && d.ld[0] >= '05:00', ['Saw the Sunrise', d => `still up at ${d.ld[0]} (05:00+)`], ['해 뜨는 거 봄', d => `새벽 ${d.ld[0]}까지 (05:00+)`]],
+  [d => afterHours(d) < 10, ['Nine to Five', d => `after hours ${f1(afterHours(d))}% (under 10%)`], ['칼퇴', d => `퇴근 후 ${f1(afterHours(d))}% (10% 미만)`]],
+  [d => d.ws >= 25, ['Weekend Warrior', d => `weekend ${f1(d.ws)}% (25%+)`], ['주말 전사', d => `주말 ${f1(d.ws)}% (25%+)`]],
+  // 꾸준함
+  [d => d.st[0] >= 14, ['Marathoner', d => `${d.st[0]}-day streak (14+)`], ['마라토너', d => `연속 ${d.st[0]}일 (14+)`]],
+  [d => d.ar >= 70, ['Regular', d => `used on ${f1(d.ar)}% of days (70%+)`], ['단골', d => `사용한 날 ${f1(d.ar)}% (70%+)`]],
+  [d => d.gp && d.gp[0] >= 14, ['Ghost', d => `${d.gp[0]} days away (14+)`], ['잠수', d => `${d.gp[0]}일 쉼 (14+)`]],
+  [d => d.p >= 10000, ['VIP', d => `${fmt(d.p)} prompts (10,000+)`], ['VIP 고객', d => `프롬프트 ${fmt(d.p)}개 (10,000+)`]],
+  // 몰아치기
+  [d => d.bh[0] >= 60, ['Runaway Train', d => `${d.bh[0]} in one hour (60+)`], ['폭주기관차', d => `1시간 ${d.bh[0]}개 (60+)`]],
+  [d => cram(d) >= 5, ['Crammer', d => `busiest day ${f1(cram(d))}x the average (5x+)`], ['벼락치기', d => `최다일이 평균의 ${f1(cram(d))}배 (5배+)`]],
+  [d => d.ls >= 200, ['Last One Standing', d => `${fmt(d.ls)} in one session (200+)`], ['끝장 토론', d => `한 세션 ${fmt(d.ls)}개 (200+)`]],
+  [d => d.pss >= 30, ['Deep Diver', d => `${f1(d.pss)} prompts per session (30+)`], ['한 우물', d => `세션당 ${f1(d.pss)}개 (30+)`]],
+  // 일하는 방식
+  [d => d.mp >= 5, ['Shadow Clone', d => `${d.mp} sessions at once (5+)`], ['분신술', d => `동시 세션 ${d.mp}개 (5+)`]],
+  [d => d.pj >= 100, ['Collector', d => `${fmt(d.pj)} folders (100+)`], ['벌려놓기 장인', d => `작업 폴더 ${fmt(d.pj)}개 (100+)`]],
+  [d => minorTool(d) && minorTool(d)[1] >= 30, ['Two-Timer', d => `${TOOL_NAMES[minorTool(d)[0]]} ${f1(minorTool(d)[1])}% (30%+)`], ['양다리', d => `${TOOL_NAMES[minorTool(d)[0]]} ${f1(minorTool(d)[1])}% (30%+)`]],
+  [d => d.mo && d.mo.s[0][1] >= 95, ['Loyal', d => `${d.mo.s[0][0]} ${f1(d.mo.s[0][1])}% (95%+)`], ['일편단심', d => `${d.mo.s[0][0]} ${f1(d.mo.s[0][1])}% (95%+)`]],
+  [d => d.ss >= 40, ['One-Liner', d => `short prompts ${f1(d.ss)}% (40%+)`], ['단답형', d => `12자 이하 ${f1(d.ss)}% (40%+)`]],
+  [d => d.al >= 120, ['Novelist', d => `${d.al} chars on average (120+)`], ['소설가', d => `평균 ${d.al}자 (120+)`]],
+  [d => d.ps >= 20, ['Ctrl+V', d => `pastes in ${f1(d.ps)}% (20%+)`], ['복붙 장인', d => `붙여넣기 ${f1(d.ps)}% (20%+)`]],
+  [d => d.ph && d.ph[0] && d.ph[0][1] >= 100, ['Broken Record', d => `"${d.ph[0][0]}" ${fmt(d.ph[0][1])}x (100+)`], ['자동응답기', d => `"${d.ph[0][0]}" ${fmt(d.ph[0][1])}회 (100+)`]],
+  [d => d.btw >= 50, ['Rabbit Hole', d => `/btw ${d.btw}x (50+)`], ['삼천포', d => `/btw ${d.btw}회 (50+)`]],
+  [d => d.rw >= 50, ['Time Traveler', d => `/rewind ${d.rw}x (50+)`], ['시간여행자', d => `/rewind ${d.rw}회 (50+)`]],
+  // 성격
+  [d => d.co[1] >= 5, ["Devil's Advocate", d => `"no" ${f1(d.co[1])}% (5%+)`], ['아니무새', d => `"아니" ${f1(d.co[1])}% (5%+)`]],
+  [d => d.pf[1] >= 3, ['Hothead', d => `swearing ${f1(d.pf[1])}% (3%+)`], ['다혈질', d => `욕설 ${f1(d.pf[1])}% (3%+)`]],
   [d => d.p >= 300 && d.pf[1] < 0.3, ['Zen', d => `swearing ${f1(d.pf[1])}% (under 0.3%)`], ['해탈', d => `욕설 ${f1(d.pf[1])}% (0.3% 미만)`]],
-  [d => d.mp >= 5, ['Multitasker', d => `${d.mp} sessions at once (5+)`], ['멀티태스커', d => `동시 세션 ${d.mp}개 (5개 이상)`]],
-  [d => d.st[0] >= 14, ['Marathoner', d => `${d.st[0]}-day streak (14+)`], ['마라토너', d => `연속 ${d.st[0]}일 (14일 이상)`]],
-  [d => d.ar >= 70, ['Regular', d => `used on ${f1(d.ar)}% of days (70%+)`], ['개근', d => `사용한 날 ${f1(d.ar)}% (70% 이상)`]],
-  [d => d.bh[0] >= 60, ['Runaway Train', d => `${d.bh[0]} in one hour (60+)`], ['폭주기관차', d => `1시간 ${d.bh[0]}개 (60개 이상)`]],
-  [d => d.ws >= 25, ['Weekend Warrior', d => `weekend ${f1(d.ws)}% (25%+)`], ['주말 전사', d => `주말 ${f1(d.ws)}% (25% 이상)`]],
-  [d => d.ss >= 40, ['Few Words', d => `short prompts ${f1(d.ss)}% (40%+)`], ['단답형', d => `12자 이하 ${f1(d.ss)}% (40% 이상)`]],
-  [d => d.al >= 120, ['Novelist', d => `${d.al} chars on average (120+)`], ['장문가', d => `평균 ${d.al}자 (120자 이상)`]],
-  [d => d.btw >= 50, ['Sidetracker', d => `/btw ${d.btw}x (50+)`], ['곁가지 탐험가', d => `/btw ${d.btw}회 (50회 이상)`]],
-  [d => d.rw >= 50, ['Time Traveler', d => `/rewind ${d.rw}x (50+)`], ['시간여행자', d => `/rewind ${d.rw}회 (50회 이상)`]],
-  [d => d.ps >= 20, ['Paste Master', d => `pastes in ${f1(d.ps)}% (20%+)`], ['붙여넣기 장인', d => `붙여넣기 ${f1(d.ps)}% (20% 이상)`]],
-  [d => d.pss >= 30, ['Deep Diver', d => `${f1(d.pss)} prompts per session (30+)`], ['한 우물', d => `세션당 ${f1(d.pss)}개 (30개 이상)`]],
 ];
 
 const measure = document.createElement('canvas').getContext('2d');
@@ -318,7 +337,6 @@ function layout(pen, d, url, check) {
   pen.row(T.short, `${f1(d.ss)}%`);
   if (d.hs > 0) pen.row(T.hangul, `${f1(d.hs)}%`);   // 한글을 안 쓰면 줄을 뺀다
   if (d.ps != null) pen.row(T.pasted, `${f1(d.ps)}%`);     // 도구에 따라 없는 값
-  if (d.sl != null) pen.row(T.slash, `${f1(d.sl)}%`);
   pen.row(T.perSession, T.perSessionVal(d.pss));
   pen.row(T.longest, T.longestVal(d.ls));
   pen.row(T.parallel, T.count(d.mp));
@@ -332,7 +350,7 @@ function layout(pen, d, url, check) {
   }
 
   if (d.mo) {
-    pen.band(T.models(d.mo.d), T.modelNote(d.mo.unit, d.mo.r));
+    pen.band(T.models(d.mo.d));
     const names = d.mo.s.map(x => (x[0] === 'Other' ? T.other : x[0]));
     const cols = Math.max(10, ...names.map(n => Math.ceil(pen.width(n) / (FS / 2))));
     hbars(pen, d.mo.s.map(x => x[1]), names, v => `${f1(v)}%`, cols, 6);
@@ -356,10 +374,10 @@ function layout(pen, d, url, check) {
   pen.text(PM + PW, pen.y, `${fmt(d.p)} PROMPTS`, FS * 2, false, 'ra');
   pen.y += FS * 2 + 10;
   pen.rule('=');
-  pen.gap(4);
+  pen.gap(12);
+  pen.center(url.split('#')[0].replace(/\/$/, ''));      // 페이지 주소는 QR 위에 기본 글꼴로
   qrcodeBlock(pen, url);
-  pen.center(url.split('#')[0].replace(/^https?:\/\//, '').replace(/\/$/, ''), FS_SMALL);
-  pen.center(`${T.check} ${check.slice(0, 4)}-${check.slice(4)}`, FS_SMALL);
+  pen.center(`${check.slice(0, 4)}-${check.slice(4)}`, FS_SMALL);
   pen.gap(12);
   pen.center(T.thanks);
   pen.gap(24);
