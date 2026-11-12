@@ -172,9 +172,9 @@ test('derive: 두 도구의 모델은 최근 30일 프롬프트 비중으로 가
   assert.deepEqual(derive(d).mo, { d: 30, s: [['gpt-6-astra', 75], ['gpt-6-sol', 25]] });
 });
 
-test('prompt.md: 페이지가 한글 머리말과 영수증 언어를 바꿔 끼우는 자리가 있다', () => {
+test('prompt.md: 한글 페이지가 줄을 더하고 영수증 언어를 바꾸는 자리가 있다', () => {
   const text = fs.readFileSync(path.join(__dirname, '..', 'prompt.md'), 'utf8');
-  for (const s of ['# Rules', '| `lg` | `"en"` |']) assert.ok(text.includes(s), s);
+  for (const s of ['\n\n# Rules', '| `lg` | `"en"` |']) assert.ok(text.includes(s), JSON.stringify(s));
 });
 
 test('validate: 빠지거나 틀린 값을 거절한다', () => {

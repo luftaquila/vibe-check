@@ -13,7 +13,6 @@ const UI = {
     lexicon: 'Your agent picks the swear words to look for in the languages you use. The criteria can differ from person to person.',
     promptTitle: 'Prompt', copy: 'Copy', copied: 'Copied', selected: 'Press Ctrl+C to copy',
     promptLoading: 'Loading', promptFail: 'The prompt did not load. You can find it as prompt.md on GitHub.',
-    promptHead: null,
     dataTitle: 'Where your data goes',
     data1: 'Your history is counted only on your computer. What you typed stays off the receipt, apart from your five most used short prompts.',
     data2: 'Anyone you give the URL or QR code to can read the receipt.',
@@ -46,7 +45,6 @@ const UI = {
     lexicon: '욕설 목록은 에이전트가 내가 쓰는 언어에 맞춰 직접 만듭니다. 사람마다 기준이 다를 수 있습니다.',
     promptTitle: '프롬프트', copy: '복사', copied: '복사됨', selected: 'Ctrl+C로 복사해 주세요',
     promptLoading: '불러오는 중', promptFail: '프롬프트를 불러오지 못했습니다. GitHub의 prompt.md에서 볼 수 있습니다.',
-    promptHead: '코딩 에이전트 연간 결산 영수증 생성.\n\n- 이 컴퓨터에 기록 파일이 있는 도구 확인 (규칙의 Input 참고). 아직 파일을 읽지 말 것.\n- 네 가지 질문 후 답을 받기 전 진행 금지: 닉네임(20자 이내, 한글이나 영문), 연도(기본값: 올해), 프롬프트에 쓰는 언어, 찾은 도구 중 포함할 것(기본값: 전부).\n- 아래 규칙(영문)대로 이 컴퓨터에서 집계. 결과는 JSON 하나.\n- 규칙의 Delivery 방법대로 영수증 페이지 열기.\n- 보고는 한 줄: 영수증을 열었다는 것, 아니면 주소가 있는 곳(Delivery 참고). 주소를 직접 옮겨 적지 말 것. 해석, 칭찬, 요약 금지.',
     dataTitle: '내 기록은 어디로 가나요',
     data1: '기록은 내 컴퓨터에서만 세고, 영수증에는 자주 쓴 짧은 프롬프트 5개 말고는 내가 쓴 문장이 들어가지 않습니다.',
     data2: '주소나 QR을 받은 사람은 영수증 내용을 볼 수 있습니다.',
@@ -242,10 +240,10 @@ async function showLanding() {
     const res = await fetch('prompt.md', { cache: 'no-cache' });
     if (!res.ok) throw new Error(res.status);
     let text = (await res.text()).trim();
-    if (t().promptHead) {      // 규칙은 영문 한 벌. 머리말과 영수증 언어만 바꾼다
-      const at = text.indexOf('# Rules');
-      if (at < 0 || !text.includes('| `lg` | `"en"` |')) throw new Error('prompt format');
-      text = t().promptHead + '\n\n' + text.slice(at).replace('| `lg` | `"en"` |', '| `lg` | `"' + lang + '"` |');
+    if (lang === 'ko') {      // 프롬프트는 영문 한 벌. 한글 페이지에서는 영수증 언어 값을 바꾸고, 한국어로 묻고 답하라는 줄을 더한다
+      const lgRow = '| `lg` | `"en"` |', rules = '\n\n# Rules';
+      if (!text.includes(lgRow) || !text.includes(rules)) throw new Error('prompt format');
+      text = text.replace(rules, '\n- Ask your questions and report in Korean.' + rules).replace(lgRow, '| `lg` | `"ko"` |');
     }
     if (mine === turn) pre.textContent = text;
   } catch (e) {
