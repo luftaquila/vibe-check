@@ -70,12 +70,12 @@ const UI = {
   },
 };
 
-// 언어: 주소의 ?lang= > 토글로 고른 값 > 영수증을 만든 사람의 언어 > 영문
+// 언어: 주소의 ?lang= > 토글로 고른 값 > 영수증을 만든 사람의 언어 > 브라우저 언어가 한국어면 한글 > 영문
 let chosen = null;
 try { chosen = localStorage.getItem('lang'); } catch (e) { /* 저장소를 못 써도 동작 */ }
 const fromQuery = new URLSearchParams(location.search).get('lang');
 const pick = v => (v === 'ko' || v === 'en' ? v : null);
-let lang = pick(fromQuery) || pick(chosen) || 'en';
+let lang = pick(fromQuery) || pick(chosen) || (/^ko\b/i.test(navigator.language || '') ? 'ko' : 'en');
 const explicit = () => pick(fromQuery) || pick(chosen);
 const t = () => UI[lang];
 
