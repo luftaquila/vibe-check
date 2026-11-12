@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>vibe-check</title>
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
 <meta name="description" content="A receipt for your year with a coding agent.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="vibe-check">
 <meta property="og:description" content="A receipt for your year with a coding agent.">
 <meta property="og:url" content="https://luftaquila.github.io/vibe-check/">
-<meta property="og:image" content="https://luftaquila.github.io/vibe-check/og.png">
+<meta property="og:image" content="https://luftaquila.github.io/vibe-check/img/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
@@ -138,16 +138,16 @@ Works with Claude Code and Codex.</p>
     <div class="make"><a id="make" class="btn" href="./" data-i18n="make">Make my receipt</a></div>
     <div id="panel" class="panel" hidden>
       <div class="bar">
-        <div id="views" class="tabs" role="tablist" hidden>
+        <div id="views" class="tabs" role="tablist">
           <button type="button" role="tab" data-view="full" aria-selected="true" data-i18n="viewFull">Full receipt</button>
           <button type="button" role="tab" data-view="card" aria-selected="false" data-i18n="viewCard">Summary card</button>
         </div>
         <div class="actions">
-          <button id="save" type="button" hidden data-i18n="save">Save image</button>
-          <button id="link" type="button" hidden data-i18n="copyLink">Copy link</button>
+          <button id="save" type="button" data-i18n="save">Save image</button>
+          <button id="link" type="button" data-i18n="copyLink">Copy link</button>
         </div>
       </div>
-      <div id="hides" class="hides" hidden>
+      <div id="hides" class="hides">
         <span class="hides-title" data-i18n="showTitle">Show on receipt</span>
         <label data-views="full card"><button id="hide-hg" class="sw onoff" type="button" role="switch" aria-checked="true"><span class="knob"></span></button><span data-i18n="showHg">Activity</span></label>
         <label data-views="full"><button id="hide-ph" class="sw onoff" type="button" role="switch" aria-checked="true"><span class="knob"></span></button><span data-i18n="showPh">Short prompt list</span></label>
@@ -188,8 +188,8 @@ Works with Claude Code and Codex.</p>
   </footer>
 </main>
 <script src="vendor/qrcode.js"></script>
-<script src="core.js"></script>
-<script src="receipt.js"></script>
-<script src="app.js"></script>
+<script src="js/core.js"></script>
+<script src="js/receipt.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>

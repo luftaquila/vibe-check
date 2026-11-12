@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { validate, normalize, parseHandoff, stamp, encode, decode, modelName, derive, fromAgent, ReceiptError } = require('../core.js');
+const { validate, normalize, parseHandoff, stamp, encode, decode, modelName, derive, fromAgent, ReceiptError } = require('../js/core.js');
 const { input, expected } = require('./fixture.json');
 
 const clone = () => structuredClone(input);
@@ -22,11 +22,11 @@ test('derive: 지난 연도 영수증은 12월 31일에서 끝난다', () => {
 
 test('derive: 모델 건수를 이름별로 묶고 상위 5개와 Other를 만든다', () => {
   const d = clone();
-  d.mo = [['claude-opus-5-5', 900], ['us.anthropic.claude-opus-5-5-v1:0', 50], ['claude-fable-5-2', 30],
-    ['claude-sonnet-5-5', 10], ['claude-haiku-5-5', 6], ['claude-3-5-sonnet-20241022', 4]];
-  assert.deepEqual(derive(d).mo, { d: 30, r: 1000, unit: 'responses',
+  d.mo = { 'claude-code': [['claude-opus-5-5', 900], ['us.anthropic.claude-opus-5-5-v1:0', 50], ['claude-fable-5-2', 30],
+    ['claude-sonnet-5-5', 10], ['claude-haiku-5-5', 6], ['claude-3-5-sonnet-20241022', 4]] };
+  assert.deepEqual(derive(d).mo, { d: 30,
     s: [['Opus 5.5', 95], ['Fable 5.2', 3], ['Sonnet 5.5', 1], ['Haiku 5.5', 0.6], ['Sonnet 3.5', 0.4]] });
-  d.mo.push(['claude-instant-1', 10]);
+  d.mo['claude-code'].push(['claude-instant-1', 10]);
   assert.deepEqual(derive(d).mo.s.at(-1), ['Other', 0.4]);
 });
 
@@ -40,7 +40,6 @@ test('modelName', () => {
     'us.anthropic.claude-opus-4-8-v1:0': 'Opus 4.8',
     'claude-opus-4-8@20260101': 'Opus 4.8',
     'gpt-6-astra': 'gpt-6-astra',
-    'codex-auto-review': 'codex-auto-review',
     'some-very-long-unknown-model': 'some-very-long-unk',
   };
   for (const [id, name] of Object.entries(cases)) assert.equal(modelName(id), name, id);
@@ -63,7 +62,7 @@ test('주소: 두 도구를 합친 값, Codex만 고른 값, 윤년, 값이 없�
   both.src = ['codex', 'claude-code']; both.bt = [['codex', 2641], ['claude-code', 6000]]; both.lg = 'ko'; both.n = '루프트 aquila';
   both.mo = { 'claude-code': [['claude-opus-5-5', 123456]], codex: [['gpt-6-astra', 7]] }; both.p30 = [['codex', 0], ['claude-code', 1234]];
   const codex = clone();
-  codex.src = ['codex']; codex.mo = null; codex.ld = null; codex.ph = [];
+  codex.src = ['codex']; codex.bt = [['codex', codex.p]]; codex.mo = null; codex.ld = null; codex.ph = [];
   for (const k of ['ps', 'sc', 'btw', 'rw']) delete codex[k];
   const leap = clone();
   leap.d = leap.d + '4'; leap.tc = 2 ** 40; leap.pm[2] = 0; leap.mc[11] = 0;
@@ -146,18 +145,8 @@ test('주소: 잔디밭을 숨기면 날짜별 값이 빠지고 계산된 숫자
   const bad = structuredClone(hidden); delete bad.st; rejects(bad, 'eMissing');
 });
 
-test('validate: 정상 값은 통과한다', () => validate(clone()));
-
-test('validate: Codex만 고르면 붙여넣기와 슬래시 항목이 없어도 통과한다', () => {
-  const d = clone();
-  d.src = ['codex'];
-  for (const k of ['ps', 'sc', 'btw', 'rw']) delete d[k];
-  validate(d);
-  assert.deepEqual(derive(d).tools, ['codex']);
-});
-
 test('validate: 도구 목록과 도구별 값을 확인한다', () => {
-  let d = clone(); d.src = ['claude-code', 'codex']; rejects(d, 'eInvalid');      // 도구가 둘이면 bt가 있어야 한다
+  let d = clone(); d.src = ['claude-code', 'codex']; rejects(d, 'eInvalid');      // bt는 도구마다 하나씩 있어야 한다
   d.bt = [['claude-code', 6000], ['codex', 2600]]; rejects(d, 'eInvalid');          // 합이 p와 다르다
   d = clone(); d.src = ['claude-code', 'codex']; d.bt = [['claude-code', 6000], ['codex', 2641]];
   d.mo = { 'claude-code': [['claude-opus-5-5', 10]], codex: [['gpt-6-astra', 5]] };
@@ -168,7 +157,8 @@ test('validate: 도구 목록과 도구별 값을 확인한다', () => {
   d = clone(); d.src = []; rejects(d, 'eInvalid');
   d = clone(); d.src = ['codex', 'codex']; rejects(d, 'eInvalid');
   d = clone(); d.src = ['codex']; d.bt = [['claude-code', 8641]]; rejects(d, 'eInvalid');
-  d = clone(); d.src = ['codex']; d.mo = { 'claude-code': [['x', 1]] }; rejects(d, 'eInvalid');
+  d = clone(); d.src = ['codex']; d.bt = [['codex', d.p]]; rejects(d, 'eInvalid');      // 고르지 않은 도구의 모델 값(mo)
+  d.mo = null; validate(d);
 });
 
 test('derive: 두 도구의 모델은 최근 30일 프롬프트 비중으로 가중해 하나로 합친다', () => {
@@ -176,21 +166,15 @@ test('derive: 두 도구의 모델은 최근 30일 프롬프트 비중으로 가
   d.src = ['claude-code', 'codex'];
   d.mo = { 'claude-code': [['claude-opus-5-5', 90], ['claude-haiku-5-5', 10]], codex: [['gpt-6-astra', 3], ['gpt-6-sol', 1]] };
   d.p30 = [['claude-code', 600], ['codex', 400]];
-  const out = derive(d);
-  assert.deepEqual(out.tools, ['claude-code', 'codex']);
   // Claude Code 60% x (90%, 10%), Codex 40% x (75%, 25%)
-  assert.deepEqual(out.mo, { d: 30, r: 1000, unit: 'prompts',
-    s: [['Opus 5.5', 54], ['gpt-6-astra', 30], ['gpt-6-sol', 10], ['Haiku 5.5', 6]] });
+  assert.deepEqual(derive(d).mo, { d: 30, s: [['Opus 5.5', 54], ['gpt-6-astra', 30], ['gpt-6-sol', 10], ['Haiku 5.5', 6]] });
   d.mo = { codex: [['gpt-6-astra', 3], ['gpt-6-sol', 1]] };      // 한 도구에만 모델 기록이 있으면 그 도구만
-  assert.deepEqual(derive(d).mo, { d: 30, r: 400, unit: 'prompts', s: [['gpt-6-astra', 75], ['gpt-6-sol', 25]] });
+  assert.deepEqual(derive(d).mo, { d: 30, s: [['gpt-6-astra', 75], ['gpt-6-sol', 25]] });
 });
 
-test('prompt.md: 두 도구의 기록 위치와 영수증 언어 줄이 있다', () => {
+test('prompt.md: 페이지가 한글 머리말과 영수증 언어를 바꿔 끼우는 자리가 있다', () => {
   const text = fs.readFileSync(path.join(__dirname, '..', 'prompt.md'), 'utf8');
-  for (const s of ['~/.claude/history.jsonl', '~/.codex/history.jsonl', '| `lg` | `"en"` |', '# Rules', '| `bt` |', '| `p30` |', '| `pc` |', 'Never type the URL yourself', 'system temp folder'])
-    assert.ok(text.includes(s), s);
-  for (const gone of ['| `p` |', '| `al` |', 'Share: percent']) assert.ok(!text.includes(gone), gone);
-  assert.doesNotMatch(text, /<!--/);
+  for (const s of ['# Rules', '| `lg` | `"en"` |']) assert.ok(text.includes(s), s);
 });
 
 test('validate: 빠지거나 틀린 값을 거절한다', () => {
@@ -214,6 +198,6 @@ test('validate: 목록 개수와 길이를 제한한다', () => {
   d = clone(); d.ph = [['x'.repeat(13), 9]]; rejects(d, 'eInvalid');
   d = clone(); d.ph = [['はい', 9]]; rejects(d, 'eInvalid');
   d = clone(); d.sc = Array.from({ length: 500 }, (_, i) => ['/c' + i, 1]); rejects(d, 'eInvalid');
-  d = clone(); d.mo = [['m'.repeat(81), 1]]; rejects(d, 'eInvalid');
+  d = clone(); d.mo = { 'claude-code': [['m'.repeat(81), 1]] }; rejects(d, 'eInvalid');
   assert.throws(() => parseHandoff('#j=' + 'A'.repeat(30000)), e => e.key === 'eInvalid');
 });

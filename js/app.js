@@ -85,7 +85,7 @@ function applyLang() {
   $('#lang').setAttribute('aria-checked', String(lang === 'ko'));
 }
 
-// 에이전트가 넘긴 값(#j=base64url JSON)을 검증하고 정식 주소(#버전.검증 번호.압축 데이터)로 바꾼다
+// 에이전트가 넘긴 값(#j=base64url JSON)을 검증하고 정식 주소(#버전.압축 데이터.검증 번호)로 바꾼다
 async function ingest(hash) {
   const data = parseHandoff(hash);
   stamp(data, new Date());
@@ -127,16 +127,10 @@ function download(canvas, name) {
 let current = null;
 let view = 'full';
 
-function saveButton(canvas) {
-  $('#save').hidden = false;
-  $('#save').onclick = () => download(canvas, `vibe-check-${current.data.y}${view === 'card' ? '-card' : ''}.png`);
-}
-
 function syncView() {
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.view === view)));
   // 지금 보기에 나오는 항목의 스위치만 보인다
   document.querySelectorAll('#hides label').forEach(l => { l.hidden = !l.dataset.views.split(' ').includes(view); });
-  $('#views').hidden = false;
 }
 
 // 표시 스위치(켜짐 = 보임). full = 이 화면에서 처음 연 값, 끄면 그 값을 뺀 주소로 바꾼다
@@ -152,7 +146,6 @@ function syncHides() {
     sw.setAttribute('aria-checked', String(!(hides[k] || lock[k])));      // 켜짐 = 영수증에 보임
     sw.disabled = lock[k];
   }
-  $('#hides').hidden = false;
 }
 
 async function toggleHide(key) {
@@ -164,7 +157,7 @@ async function toggleHide(key) {
     delete d.d;
   }
   if (hides.ph) d.ph = [];
-  if (hides.pat) { d.hp = true; for (const k of ['co', 'pf', 'pm']) delete d[k]; }
+  if (hides.pat) { d.hp = true; for (const k of PATIENCE) delete d[k]; }
   if (hides.mo) { d.mo = null; d.p30 = null; }
   const { hash } = await encode(d);
   ownHash = hash;
@@ -172,22 +165,18 @@ async function toggleHide(key) {
   showReceipt();
 }
 
-function linkButton() {
-  const btn = $('#link');
-  btn.hidden = false;
-  btn.onclick = async () => {
-    try {
-      await navigator.clipboard.writeText(location.href);
-    } catch (e) {            // 클립보드를 못 쓰는 환경
-      const box = document.createElement('textarea');
-      box.value = location.href;
-      document.body.append(box);
-      box.select();
-      document.execCommand('copy');
-      box.remove();
-    }
-    flash(btn, t().copied, () => t().copyLink);
-  };
+async function copyLink() {
+  try {
+    await navigator.clipboard.writeText(location.href);
+  } catch (e) {            // 클립보드를 못 쓰는 환경
+    const box = document.createElement('textarea');
+    box.value = location.href;
+    document.body.append(box);
+    box.select();
+    document.execCommand('copy');
+    box.remove();
+  }
+  flash($('#link'), t().copied, () => t().copyLink);
 }
 
 let turn = 0;   // 언어를 빠르게 바꿀 때 늦게 끝난 렌더링을 버린다
@@ -198,29 +187,25 @@ async function showReceipt() {
   $('#viewer').hidden = false;
   const status = $('#status');
   if (!status.hidden) status.hidden = true;      // 알림은 문제가 있을 때만 보인다
-  const controls = ['#save', '#link', '#hides', '#views'];
   if (!current) $('#panel').hidden = true;      // 처음 열 때만 숨긴다. 다시 그릴 때는 그대로 둔다
   try {
     if (location.hash.startsWith('#j=')) await ingest(location.hash);
     const { data, check, ok } = await decode(location.hash);
     if (!explicit() && pick(data.lg) && data.lg !== lang) { lang = data.lg; applyLang(); }
-    // QR에는 언어 선택과 무관한 정식 주소만 넣는다
-    data.y = +data.fp.slice(0, 4);      // 제목과 파일 이름에 쓰는 연도
     if (location.hash !== ownHash) { full = structuredClone(data); for (const k of HIDES) hides[k] = false; }   // 새로 연 영수증
-    const url = base() + location.hash;
-    const canvas = await renderReceipt(data, url, check, lang, view === 'card');
+    const d = derive(data);
+    // QR에는 언어 선택과 무관한 정식 주소만 넣는다
+    const canvas = await renderReceipt(d, base() + location.hash, check, lang, view === 'card');
     if (mine !== turn) return;
-    current = { data, url, check };
-    mount($('#receipt'), canvas, t().receiptAlt(data));
-    document.title = t().pageTitle(data);
+    current = { canvas, year: d.y };
+    mount($('#receipt'), canvas, t().receiptAlt(d));
+    document.title = t().pageTitle(d);
     const no = `${check.slice(0, 4)}-${check.slice(4)}`;
     if (!ok) {
       status.className = 'status bad';
       status.textContent = t().bad(no);
       status.hidden = false;
     }
-    saveButton(canvas);
-    linkButton();
     syncHides();
     syncView();
     $('#panel').hidden = false;
@@ -278,6 +263,8 @@ $('#lang').addEventListener('click', () => {
   try { localStorage.setItem('lang', lang); } catch (e) { /* 저장 실패는 무시 */ }
   route();
 });
+$('#save').addEventListener('click', () => download(current.canvas, `vibe-check-${current.year}${view === 'card' ? '-card' : ''}.png`));
+$('#link').addEventListener('click', copyLink);
 for (const k of HIDES) $('#hide-' + k).addEventListener('click', () => toggleHide(k));
 document.querySelectorAll('#views button').forEach(b => b.addEventListener('click', () => { view = b.dataset.view; showReceipt(); }));
 window.addEventListener('hashchange', route);

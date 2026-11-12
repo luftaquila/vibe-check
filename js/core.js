@@ -42,12 +42,8 @@ const isStr = (v, max) => typeof v === 'string' && [...v].length <= max;
 // [[문자열, 숫자], ...] 형태의 목록. 남이 만든 주소를 열 때 영수증이 끝없이 길어지지 않게 개수와 길이를 막는다
 const isList = (v, maxRows, maxLen) => Array.isArray(v) && v.length <= maxRows
   && v.every(r => Array.isArray(r) && r.length === 2 && isStr(r[0], maxLen) && isInt(r[1]));
-
-// 영수증에 담긴 도구 목록. 예전 형식(문자열 하나)도 받는다
-function toolsOf(d) {
-  if (d.src == null) return ['claude-code'];
-  return Array.isArray(d.src) ? d.src : [d.src];
-}
+const two = n => String(n).padStart(2, '0');
+const pct = (a, b) => (b ? Math.round(a / b * 1000) / 10 : 0);      // 소수 한 자리 퍼센트
 
 function validate(d) {
   const bad = k => new ReceiptError('eInvalid', k);
@@ -70,10 +66,10 @@ function validate(d) {
   for (const k of SHARES) if (!isNum(d[k])) throw bad(k);
   for (const k of OPTIONAL_COUNTS) if (d[k] != null && !isInt(d[k])) throw bad(k);
   for (const k of OPTIONAL_SHARES) if (d[k] != null && !isNum(d[k])) throw bad(k);
-  const tools = toolsOf(d);
-  if (!tools.length || tools.length > TOOLS.length || new Set(tools).size !== tools.length || !tools.every(x => TOOLS.includes(x))) throw bad('src');
-  // 도구별 프롬프트 수는 도구마다 하나씩 있고 합이 전체와 같아야 한다. 도구가 하나면 생략할 수 있다
-  if (d.bt == null ? tools.length > 1 : !(isList(d.bt, TOOLS.length, 20) && d.bt.length === tools.length
+  const tools = d.src;
+  if (!Array.isArray(tools) || !tools.length || new Set(tools).size !== tools.length || !tools.every(x => TOOLS.includes(x))) throw bad('src');
+  // 도구별 프롬프트 수는 도구마다 하나씩 있고 합이 전체와 같아야 한다
+  if (!(isList(d.bt, TOOLS.length, 20) && d.bt.length === tools.length
     && tools.every(x => d.bt.some(r => r[0] === x)) && d.bt.reduce((a, r) => a + r[1], 0) === d.p)) throw bad('bt');
   if (d.p < 1) throw bad('p');
   for (const k of ['q', 'h', 'w']) if (!d[k].every(isInt)) throw bad(k);
@@ -89,8 +85,9 @@ function validate(d) {
   if (d.ph != null && !(isList(d.ph, 5, 12) && d.ph.every(r => PRINTABLE.test(r[0])))) throw bad('ph');
   if (d.sc != null && !isList(d.sc, 5, 40)) throw bad('sc');
   let moTools = 0;
-  if (d.mo != null) {      // 도구별 목록. 도구가 하나면 목록만 넘겨도 받는다
-    const lists = Array.isArray(d.mo) ? [d.mo] : Object.entries(d.mo).map(([k, v]) => (tools.includes(k) ? v : null));
+  if (d.mo != null) {      // 도구별 목록
+    if (typeof d.mo !== 'object' || Array.isArray(d.mo)) throw bad('mo');
+    const lists = Object.entries(d.mo).map(([k, v]) => (tools.includes(k) ? v : null));
     if (!lists.every(v => isList(v, 30, 80))) throw bad('mo');
     moTools = lists.filter(v => v.length).length;
   }
@@ -102,7 +99,6 @@ function validate(d) {
 // 에이전트는 개수만 넘긴다(pc가 있으면 그 모양). 합계, 평균, 비율은 여기서 낸다
 function fromAgent(d) {
   if (!d || typeof d !== 'object' || d.pc == null) return d;
-  const pct = (a, b) => (isInt(a) && b ? Math.round(a / b * 1000) / 10 : 0);
   const bt = Array.isArray(d.bt) ? d.bt.filter(r => Array.isArray(r) && isInt(r[1])) : [];
   d.p = bt.reduce((a, r) => a + r[1], 0);
   const pc = d.pc;
@@ -132,7 +128,6 @@ function parseHandoff(hash) {
 
 // 발행 시각은 페이지가 찍는다. 이후에는 주소에 고정된다
 function stamp(data, now) {
-  const two = n => String(n).padStart(2, '0');
   data.iss = `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())} ${two(now.getHours())}:${two(now.getMinutes())}`;
   return data;
 }
@@ -142,7 +137,6 @@ function stamp(data, now) {
 // 잔디밭은 5진수 한 덩어리, 날짜와 시각은 작은 정수로 바꾼다. 순서는 pack()과 unpack()이 같아야 한다.
 
 const EPOCH = Date.UTC(2000, 0, 1);
-const two = n => String(n).padStart(2, '0');
 const stampToMin = s => Math.round((Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10), +s.slice(11, 13), +s.slice(14, 16)) - EPOCH) / 60000);
 const minToStamp = m => new Date(EPOCH + m * 60000).toISOString().slice(0, 16).replace('T', ' ');
 const mdToNum = s => +s.slice(0, 2) * 32 + +s.slice(3, 5);
@@ -155,11 +149,10 @@ const EXTRAS = ['ps', 'btw', 'rw', 'sc'];      // Claude Code를 골랐을 때�
 
 // 값의 모양을 하나로 맞춘다. 주소에 담기는 것은 이 모양이다
 function normalize(d) {
-  const tools = TOOLS.filter(x => toolsOf(d).includes(x));
-  const bt = d.bt ? tools.map(x => [x, (d.bt.find(r => r[0] === x) || [x, 0])[1]]) : [[tools[0], d.p]];
-  const lists = d.mo == null ? {} : Array.isArray(d.mo) ? { [tools[0]]: d.mo } : d.mo;
+  const tools = TOOLS.filter(x => d.src.includes(x));
+  const bt = tools.map(x => [x, d.bt.find(r => r[0] === x)[1]]);
   const mo = {};
-  for (const x of tools) if (lists[x] && lists[x].length) mo[x] = lists[x].map(r => [r[0], r[1]]);
+  for (const x of tools) if (d.mo && d.mo[x] && d.mo[x].length) mo[x] = d.mo[x].map(r => [r[0], r[1]]);
   const out = {
     v: 1, src: tools, lg: d.lg === 'ko' ? 'ko' : 'en', n: d.n, p: d.p, bt, s: d.s, pj: d.pj, fp: d.fp,
     bd: d.bd, bh: d.bh, q: d.q, mc: d.mc, h: d.h, w: d.w, ld: d.ld || null,
@@ -336,7 +329,6 @@ function modelName(id) {
 }
 
 function derive(d) {
-  const pct = (a, b) => (b ? Math.round(a / b * 1000) / 10 : 0);
   const sum = a => a.reduce((x, y) => x + y, 0);
   const y = +d.fp.slice(0, 4);
   const jan1 = Date.UTC(y, 0, 1);
@@ -370,9 +362,8 @@ function derive(d) {
   const pickMonth = sign => months.reduce((b, m) => (!b || sign * (m[1] - b[1]) > 0 || (m[1] === b[1] && m[2] > b[2]) ? m : b), null);
   // 모델 비율은 도구 구분 없이 하나로 합친다. Claude Code는 응답 수, Codex는 턴 수라 단위가 달라서
   // 도구 안에서 비율을 낸 뒤 그 도구의 최근 30일 프롬프트 비중을 곱해 더한다
-  const tools = toolsOf(d);
-  const byTool = d.mo == null ? {} : Array.isArray(d.mo) ? { [tools[0]]: d.mo } : d.mo;
-  const used = tools.filter(x => sum((byTool[x] || []).map(r => r[1])) > 0);
+  const byTool = d.mo || {};
+  const used = d.src.filter(x => sum((byTool[x] || []).map(r => r[1])) > 0);
   const prompts = x => (d.p30 ? (d.p30.find(r => r[0] === x) || [x, 0])[1] : 1);
   const weightSum = sum(used.map(prompts));
   const by = {};
@@ -387,9 +378,7 @@ function derive(d) {
     const s = rows.slice(0, 5).map(([k, v]) => [k, pct(v, 1)]);
     const rest = pct(sum(rows.slice(5).map(r => r[1])), 1);
     if (rest >= 0.1) s.push(['Other', rest]);
-    // 기준 수: 프롬프트 수가 있으면 그것, 없으면(도구 하나) 응답 수나 턴 수
-    mo = d.p30 ? { d: 30, r: weightSum, unit: 'prompts', s }
-      : { d: 30, r: sum(byTool[used[0]].map(r => r[1])), unit: used[0] === 'codex' ? 'turns' : 'responses', s };
+    mo = { d: 30, s };
   }
   const wm = pickMonth(1), cm = pickMonth(-1);
   return {
@@ -397,10 +386,10 @@ function derive(d) {
     ar: pct(ad, end - first + 1), pd: Math.round(d.p / ad), pss: Math.round(d.p / (d.s || 1) * 10) / 10,
     st, gp,
     ns: pct(sum(d.h.slice(0, 6)), d.p), mrs: pct(sum(d.h.slice(6, 9)), d.p), ws: pct(d.w[5] + d.w[6], d.p),
-    wm: wm && [wm[0], wm[1]], cm: cm && [cm[0], cm[1]], mo, tools,
+    wm: wm && [wm[0], wm[1]], cm: cm && [cm[0], cm[1]], mo,
   };
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { FORMAT_VERSION, TOOLS, ReceiptError, toolsOf, validate, normalize, fromAgent, parseHandoff, stamp, encode, decode, modelName, derive };
+  module.exports = { ReceiptError, validate, normalize, fromAgent, parseHandoff, stamp, encode, decode, modelName, derive };
 }

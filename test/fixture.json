@@ -2,10 +2,18 @@
  "note": "가상 기록으로 만든 값. expected는 Python 기준 구현으로 계산한 값",
  "input": {
   "v": 1,
-  "src": "claude-code",
+  "src": [
+   "claude-code"
+  ],
   "n": "예시",
   "iss": "2026-11-12 18:00",
   "p": 8641,
+  "bt": [
+   [
+    "claude-code",
+    8641
+   ]
+  ],
   "s": 666,
   "pj": 18,
   "fp": "2026-01-01 00:06",
@@ -129,20 +137,22 @@
   ],
   "btw": 107,
   "rw": 0,
-  "mo": [
-   [
-    "claude-opus-5-5",
-    15188
-   ],
-   [
-    "claude-sonnet-5-5",
-    2599
-   ],
-   [
-    "claude-haiku-5-5",
-    645
+  "mo": {
+   "claude-code": [
+    [
+     "claude-opus-5-5",
+     15188
+    ],
+    [
+     "claude-sonnet-5-5",
+     2599
+    ],
+    [
+     "claude-haiku-5-5",
+     645
+    ]
    ]
-  ],
+  },
   "co": [
    677,
    7.8

@@ -11,4 +11,4 @@ jobs:
         with:
           node-version: 22
       - run: node --test
-      - run: node --check app.js && node --check receipt.js
+      - run: node --check js/app.js && node --check js/receipt.js
