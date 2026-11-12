@@ -1,6 +1,6 @@
 Generate my coding agent year-in-review receipt.
 
-- Check which tools have a history file on this computer (see Input). Do not read the files yet.
+- Check which tools have a history file or session files on this computer (see Input). Do not read the files yet.
 - Ask me four things, and do not continue until I answer: a nickname (20 characters max, English or Korean), the year (default: this year), the languages I write prompts in, and which of the tools you found to include (default: all of them).
 - Aggregate on this computer by the rules below. The result is one JSON object.
 - Open the receipt page as described under Delivery.
@@ -16,6 +16,10 @@ Generate my coding agent year-in-review receipt.
 ## Input
 - Claude Code (`claude-code`): `~/.claude/history.jsonl` (under `CLAUDE_CONFIG_DIR` if set). One line is one prompt: `timestamp` (ms), `display` (text), `project` (folder), `sessionId`, `pastedContents`
 - Codex (`codex`): `~/.codex/history.jsonl` (under `CODEX_HOME` if set). One line is one prompt: `ts` (seconds), `text`, `session_id`
+- If `CLAUDE_CONFIG_DIR` or `CODEX_HOME` is set, the `projects/` and `sessions/` folders named below are under it too. A desktop app may not see the variable, so read those folders under both it and the default `~/.claude` or `~/.codex`
+- The desktop apps do not write to these files. Add their prompts from the session files:
+  - Claude Desktop, counted as `claude-code`: every `*.jsonl` under `~/.claude/projects/` (including subfolders). A prompt is a line whose `type` is `user`, `entrypoint` is `claude-desktop`, `origin.kind` is `human`, and `isSidechain` is not true. Read `timestamp` (ISO 8601), `sessionId`, `cwd` (folder), and the text: `message.content` if it is a string, otherwise the `text` of its blocks whose `type` is `text`, joined with newlines. Leave out blocks whose trimmed text starts with `<system-reminder>` and ends with `</system-reminder>`: the app adds those. Count each `uuid` once: a resumed or forked session repeats earlier lines in a new file. A prompt that is only an image has empty text and still counts
+  - ChatGPT Desktop, counted as `codex`: every `rollout-*.jsonl` under `~/.codex/sessions/` (including subfolders) whose first line (`type` is `session_meta`) has a string `payload.source` other than `exec` and a `payload.id` that is not a `session_id` in `history.jsonl`. The session id is that `payload.id`. A prompt is a line whose `type` is `event_msg` and whose `payload.type` is `user_message` (text: `payload.message`), or whose `payload.type` is `item_completed` with `payload.item.type` `UserMessage` (text: the `text` of the `payload.item.content` entries whose `type` is `text`, joined with newlines). Read `timestamp` (ISO 8601) of the line
 - Scope: records of the chosen year in local time. Trim whitespace around the prompt text
 - End date: today, or December 31 for a past year
 - Dedupe: within a tool, lines with the same (session id, text, timestamp floored to seconds) count once
@@ -63,14 +67,14 @@ Only when Claude Code is chosen (leave these out otherwise):
 
 | Key | Value |
 |---|---|
-| `ps` | number of Claude Code prompts with a paste: `pastedContents` is not empty, or the text contains `[Pasted text` or `[Image` |
+| `ps` | number of Claude Code prompts with a paste: `pastedContents` is not empty, or the text contains `[Pasted text` or `[Image`, or, for a Claude Desktop prompt, `message.content` has a block whose `type` is `image` |
 | `sc` | top slash commands `[[name, count], ...]`, up to 5. Count descending, then name |
 | `btw`, `rw` | counts of `/btw` and `/rewind` |
 
 ### Project folders `pj`
-- Claude Code: `project` of each prompt
+- Claude Code: `project` of each prompt (`cwd` for Claude Desktop prompts)
 - Codex: `payload.cwd` on the first line (`type` is `session_meta`) of each `rollout-*.jsonl` under `~/.codex/sessions/` whose `payload.timestamp` falls in the chosen year
-- Cut each path from `/.claude/worktrees/` onward (`\.claude\worktrees\` on Windows). Temp folders count as one: paths starting with `/private/tmp/`, `/tmp/`, `/var/folders/`, or containing `\AppData\Local\Temp\`
+- Cut each path from `/.claude/worktrees/` onward (`\.claude\worktrees\` on Windows). Temp folders count as one: paths starting with `/private/tmp/`, `/tmp/`, `/var/folders/`, or containing `\AppData\Local\Temp\`. The folders the desktop apps make for chats without a project are temp folders too: paths containing `/scratch-workspaces/` or `/Documents/Codex/` (the same with `\` on Windows)
 - Count the distinct folders over all chosen tools together
 
 ### Quartile boundaries `q`
