@@ -4,7 +4,7 @@ A receipt for your year with a coding agent. Works with Claude Code and Codex.
 
 **https://luftaquila.github.io/vibe-check/**
 
-<img src="img/sample.png" alt="Sample receipt" width="340">
+<img src="img/sample.png" alt="The same receipt in English and Korean" width="680">
 
 ## How to use
 

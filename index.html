@@ -46,7 +46,7 @@ body {
 main { max-width: 720px; margin: 0 auto; display: grid; gap: 28px; grid-template-columns: minmax(0, 1fr); }
 h1, h2, button, .btn { font-family: "NeoDGM Code", ui-monospace, monospace; }
 h1 { font-size: 36px; line-height: 1.1; margin: 0; letter-spacing: -0.01em; }
-h2 { font-size: 20px; margin: 0 0 8px; }
+h2 { font-size: 20px; margin: 0; }
 p { margin: 0; }
 header { display: grid; gap: 10px; }
 header p { color: var(--muted); text-wrap: pretty; white-space: pre-line; }
@@ -54,7 +54,6 @@ section { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
 ol, ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
 a { color: var(--ink); }
 .note { color: var(--muted); font-size: 14px; }
-footer { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 14px; }
 
 /* 머리줄 */
 .top { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
@@ -66,7 +65,7 @@ footer { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; g
 /* 버튼 */
 button, .btn {
   font-size: 15px; padding: 8px 14px; border: 2px solid var(--ink); background: var(--paper);
-  color: var(--ink); cursor: pointer; text-decoration: none; border-radius: 0;
+  color: var(--ink); cursor: pointer; text-decoration: none; border-radius: 0; white-space: nowrap;
 }
 button:hover, .btn:hover { background: var(--ink); color: var(--paper); }
 button:focus-visible, .btn:focus-visible, a:focus-visible { outline: 3px solid #3a6fd8; outline-offset: 2px; }
@@ -93,7 +92,7 @@ button:focus-visible, .btn:focus-visible, a:focus-visible { outline: 3px solid #
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .bar button, .make .btn {
   display: flex; align-items: center; justify-content: center; height: 38px; padding: 0 14px;
-  font-size: 15px; line-height: 1; white-space: nowrap;
+  font-size: 15px; line-height: 1;
 }
 .hides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 22px; justify-items: start; padding: 12px; border-top: 1px solid var(--line); }
 .hides-title { grid-column: 1 / -1; }
@@ -111,6 +110,8 @@ button:focus-visible, .btn:focus-visible, a:focus-visible { outline: 3px solid #
 .receipt canvas { display: block; width: 100%; max-width: 696px; height: auto; margin: 0 auto; }
 
 /* 첫 화면 */
+#landing { gap: 28px; }
+#copy { min-width: 80px; }      /* '복사'와 '복사됨' 둘 다 들어가는 폭 */
 .prompt-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 pre.prompt {
   margin: 0; padding: 16px; background: var(--paper); border: 1px solid var(--line);
@@ -166,7 +167,6 @@ Works with Claude Code and Codex.</p>
         <li data-i18n="how2"></li>
         <li data-i18n="how3"></li>
       </ol>
-      <p class="note" data-i18n="lexicon"></p>
     </section>
     <section>
       <div class="prompt-head"><h2 data-i18n="promptTitle">Prompt</h2>
@@ -179,13 +179,9 @@ Works with Claude Code and Codex.</p>
         <li data-i18n="data1"></li>
         <li data-i18n="data2"></li>
       </ul>
+      <p class="note" data-i18n="lexicon"></p>
     </section>
   </section>
-
-  <footer>
-    <span data-i18n="font"></span>
-    <span data-i18n="qr"></span>
-  </footer>
 </main>
 <script src="vendor/qrcode.js"></script>
 <script src="js/core.js"></script>
