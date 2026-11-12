@@ -21,9 +21,9 @@ async function checkOf(raw) {
   return [...h].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 8).toUpperCase();
 }
 
-const REQUIRED = ['n', 'p', 's', 'pj', 'fp', 'bd', 'bh', 'q', 'd', 'mc', 'h', 'w', 'tc', 'al', 'ss', 'hs',
-  'ls', 'mp', 'co', 'pf', 'pm'];
-const LENGTHS = { bd: 2, bh: 2, q: 3, mc: 12, h: 24, w: 7, co: 2, pf: 2, pm: 12 };
+const REQUIRED = ['n', 'p', 's', 'pj', 'fp', 'bd', 'bh', 'q', 'mc', 'h', 'w', 'tc', 'al', 'ss', 'hs', 'ls', 'mp'];
+const PATIENCE = ['co', 'pf', 'pm'];      // 인내심 지표. 숨기면(hp) 주소에 담지 않는다
+const LENGTHS = { bd: 2, bh: 2, q: 3, mc: 12, h: 24, w: 7 };
 const COUNTS = ['p', 's', 'pj', 'tc', 'al', 'ls', 'mp'];
 const SHARES = ['ss', 'hs'];
 const OPTIONAL_COUNTS = ['btw', 'rw'];
@@ -53,11 +53,17 @@ function validate(d) {
   const bad = k => new ReceiptError('eInvalid', k);
   if (!d || typeof d !== 'object' || Array.isArray(d)) throw new ReceiptError('eObject');
   if (String(d.v) !== FORMAT_VERSION) throw new ReceiptError('eVersion', d.v);
-  const missing = REQUIRED.filter(k => d[k] === undefined || d[k] === null);
+  // 잔디밭을 숨기면(hg) 날짜별 값 대신 거기서 나오는 숫자(사용한 날, 최장 연속)만 담는다
+  const missing = REQUIRED.concat(d.hp ? [] : PATIENCE, d.hg ? ['ad', 'st'] : ['d']).filter(k => d[k] === undefined || d[k] === null);
   if (missing.length) throw new ReceiptError('eMissing', missing.join(', '));
   for (const [k, n] of Object.entries(LENGTHS))
     if (!Array.isArray(d[k]) || d[k].length !== n) throw new ReceiptError('eArray', k, n);
-  if (typeof d.d !== 'string' || !/^[0-4]{365,366}$/.test(d.d)) throw new ReceiptError('eGrid');
+  const span = v => Array.isArray(v) && v.length === 3 && isInt(v[0]) && typeof v[1] === 'string' && MD.test(v[1]) && typeof v[2] === 'string' && MD.test(v[2]);
+  if (d.hg) {
+    if (!isInt(d.ad)) throw bad('ad');
+    if (!span(d.st)) throw bad('st');
+    if (d.gp != null && !span(d.gp)) throw bad('gp');
+  } else if (typeof d.d !== 'string' || !/^[0-4]{365,366}$/.test(d.d)) throw new ReceiptError('eGrid');
   if (typeof d.n !== 'string' || !d.n.trim() || [...d.n].length > 20 || !PRINTABLE.test(d.n)) throw new ReceiptError('eNick');
   if (typeof d.fp !== 'string' || !STAMP.test(d.fp)) throw bad('fp');
   for (const k of COUNTS) if (!isInt(d[k])) throw bad(k);
@@ -71,9 +77,11 @@ function validate(d) {
     && tools.every(x => d.bt.some(r => r[0] === x)) && d.bt.reduce((a, r) => a + r[1], 0) === d.p)) throw bad('bt');
   if (d.p < 1) throw bad('p');
   for (const k of ['q', 'h', 'w']) if (!d[k].every(isInt)) throw bad(k);
-  for (const k of ['co', 'pf']) if (!isInt(d[k][0]) || !isNum(d[k][1])) throw bad(k);
+  if (!d.hp) {
+    for (const k of ['co', 'pf']) if (!Array.isArray(d[k]) || d[k].length !== 2 || !isInt(d[k][0]) || !isNum(d[k][1])) throw bad(k);
+    if (!Array.isArray(d.pm) || d.pm.length !== 12 || !d.pm.every(v => v === null || isNum(v))) throw bad('pm');
+  }
   if (!d.mc.every(v => v === null || isInt(v))) throw bad('mc');
-  if (!d.pm.every(v => v === null || isNum(v))) throw bad('pm');
   if (!isInt(d.bd[0]) || typeof d.bd[1] !== 'string' || !MD.test(d.bd[1])) throw bad('bd');
   if (!isInt(d.bh[0]) || typeof d.bh[1] !== 'string' || !MDHM.test(d.bh[1])) throw bad('bh');
   if (d.ld != null && !(Array.isArray(d.ld) && d.ld.length === 2 && typeof d.ld[0] === 'string' && HM.test(d.ld[0])
@@ -91,12 +99,30 @@ function validate(d) {
     && tools.every(x => d.p30.some(r => r[0] === x)))) throw bad('p30');
 }
 
+// 에이전트는 개수만 넘긴다(pc가 있으면 그 모양). 합계, 평균, 비율은 여기서 낸다
+function fromAgent(d) {
+  if (!d || typeof d !== 'object' || d.pc == null) return d;
+  const pct = (a, b) => (isInt(a) && b ? Math.round(a / b * 1000) / 10 : 0);
+  const bt = Array.isArray(d.bt) ? d.bt.filter(r => Array.isArray(r) && isInt(r[1])) : [];
+  d.p = bt.reduce((a, r) => a + r[1], 0);
+  const pc = d.pc;
+  delete d.pc;
+  d.al = isInt(d.tc) && pc ? Math.round(d.tc / pc) : 0;
+  d.ss = pct(d.ss, pc);
+  d.hs = pct(d.hs, pc);
+  if (d.ps != null) d.ps = pct(d.ps, (bt.find(r => r[0] === 'claude-code') || [0, 0])[1]);
+  if (Array.isArray(d.pm) && Array.isArray(d.mc)) d.pm = d.pm.map((n, k) => (d.mc[k] ? pct(n, d.mc[k]) : null));
+  if (isInt(d.co)) d.co = [d.co, pct(d.co, d.p)];
+  if (isInt(d.pf)) d.pf = [d.pf, pct(d.pf, d.p)];
+  return d;
+}
+
 // 에이전트가 넘긴 값: #j=<base64url JSON>
 function parseHandoff(hash) {
   if (hash.length > MAX_HANDOFF) throw new ReceiptError('eInvalid', 'j');
   let data;
   try {
-    data = JSON.parse(new TextDecoder().decode(fromB64url(hash.slice(3).replace(/=+$/, ''))));
+    data = fromAgent(JSON.parse(new TextDecoder().decode(fromB64url(hash.slice(3).replace(/=+$/, '')))));
   } catch (e) {
     throw new ReceiptError('eIngest');
   }
@@ -136,12 +162,15 @@ function normalize(d) {
   for (const x of tools) if (lists[x] && lists[x].length) mo[x] = lists[x].map(r => [r[0], r[1]]);
   const out = {
     v: 1, src: tools, lg: d.lg === 'ko' ? 'ko' : 'en', n: d.n, p: d.p, bt, s: d.s, pj: d.pj, fp: d.fp,
-    bd: d.bd, bh: d.bh, q: d.q, d: d.d, mc: d.mc, h: d.h, w: d.w, ld: d.ld || null,
+    bd: d.bd, bh: d.bh, q: d.q, mc: d.mc, h: d.h, w: d.w, ld: d.ld || null,
     tc: d.tc, al: d.al, ss: r1(d.ss), hs: r1(d.hs), ls: d.ls, mp: d.mp, ph: d.ph || [],
     mo: Object.keys(mo).length ? mo : null,
     p30: d.p30 ? tools.map(x => [x, d.p30.find(r => r[0] === x)[1]]) : null,
-    co: [d.co[0], r1(d.co[1])], pf: [d.pf[0], r1(d.pf[1])], pm: d.pm.map(v => (v === null ? null : r1(v))),
   };
+  if (d.hg) Object.assign(out, { hg: true, ad: d.ad, st: d.st, gp: d.gp || null });
+  else out.d = d.d;
+  if (d.hp) out.hp = true;
+  else Object.assign(out, { co: [d.co[0], r1(d.co[1])], pf: [d.pf[0], r1(d.pf[1])], pm: d.pm.map(v => (v === null ? null : r1(v))) });
   for (const k of EXTRAS) if (d[k] != null) out[k] = k === 'ps' ? r1(d[k]) : d[k];
   out.iss = d.iss;
   return out;
@@ -159,19 +188,25 @@ function pack(d) {
   };
 
   out.push(TOOLS.reduce((m, x, i) => (d.src.includes(x) ? m | (1 << i) : m), 0)
-    | (d.lg === 'ko' ? 16 : 0) | (d.ld ? 32 : 0) | (d.d.length === 366 ? 64 : 0) | (d.p30 ? 128 : 0));
-  out.push(EXTRAS.reduce((m, k, i) => (d[k] != null ? m | (1 << i) : m), 0));
+    | (d.lg === 'ko' ? 16 : 0) | (d.ld ? 32 : 0) | (!d.hg && d.d.length === 366 ? 64 : 0) | (d.p30 ? 128 : 0));
+  out.push(EXTRAS.reduce((m, k, i) => (d[k] != null ? m | (1 << i) : m), 0) | (d.hp ? 16 : 0) | (d.hg ? 32 : 0) | (d.hg && d.gp ? 64 : 0));
   str(d.n);
   for (const [, n] of d.bt) int(n);
   int(d.s); int(d.pj); int(stampToMin(d.fp)); int(stampToMin(d.iss));
   int(d.bd[0]); int(mdToNum(d.bd[1]));
   int(d.bh[0]); int(mdToNum(d.bh[1])); int(hmToNum(d.bh[1].slice(6)));
   d.q.forEach(int);
-  let grid = 0n;
-  for (const ch of d.d) grid = grid * 5n + BigInt(ch);
-  const gb = new Array(gridBytes(d.d.length));
-  for (let i = gb.length - 1; i >= 0; i--) { gb[i] = Number(grid & 255n); grid >>= 8n; }
-  out.push(...gb);
+  const span = v => { int(v[0]); int(mdToNum(v[1])); int(mdToNum(v[2])); };
+  if (d.hg) {
+    int(d.ad); span(d.st);
+    if (d.gp) span(d.gp);
+  } else {
+    let grid = 0n;
+    for (const ch of d.d) grid = grid * 5n + BigInt(ch);
+    const gb = new Array(gridBytes(d.d.length));
+    for (let i = gb.length - 1; i >= 0; i--) { gb[i] = Number(grid & 255n); grid >>= 8n; }
+    out.push(...gb);
+  }
   masked(d.mc, int);
   d.h.forEach(int); d.w.forEach(int);
   if (d.ld) { int(hmToNum(d.ld[0])); int(mdToNum(d.ld[1])); }
@@ -179,8 +214,7 @@ function pack(d) {
   list(d.ph);
   for (const x of d.src) list((d.mo && d.mo[x]) || []);
   if (d.p30) for (const [, n] of d.p30) int(n);
-  int(d.co[0]); share(d.co[1]); int(d.pf[0]); share(d.pf[1]);
-  masked(d.pm, share);
+  if (!d.hp) { int(d.co[0]); share(d.co[1]); int(d.pf[0]); share(d.pf[1]); masked(d.pm, share); }
   if (d.ps != null) share(d.ps);
   if (d.btw != null) int(d.btw);
   if (d.rw != null) int(d.rw);
@@ -208,13 +242,18 @@ function unpack(bytes) {
   d.bd = [int(), numToMd(int())];
   d.bh = [int(), `${numToMd(int())} ${numToHm(int())}`];
   d.q = times(3, int);
-  const len = flags & 64 ? 366 : 365;
-  let grid = 0n;
-  for (let i = gridBytes(len); i > 0; i--) grid = (grid << 8n) | BigInt(byte());
-  const digits = new Array(len);
-  for (let i = len - 1; i >= 0; i--) { digits[i] = String(grid % 5n); grid /= 5n; }
-  if (grid !== 0n) throw new Error('grid');
-  d.d = digits.join('');
+  const span = () => [int(), numToMd(int()), numToMd(int())];
+  if (extras & 32) {
+    d.hg = true; d.ad = int(); d.st = span(); d.gp = extras & 64 ? span() : null;
+  } else {
+    const len = flags & 64 ? 366 : 365;
+    let grid = 0n;
+    for (let i = gridBytes(len); i > 0; i--) grid = (grid << 8n) | BigInt(byte());
+    const digits = new Array(len);
+    for (let i = len - 1; i >= 0; i--) { digits[i] = String(grid % 5n); grid /= 5n; }
+    if (grid !== 0n) throw new Error('grid');
+    d.d = digits.join('');
+  }
   d.mc = masked(12, int);
   d.h = times(24, int); d.w = times(7, int);
   d.ld = flags & 32 ? [numToHm(int()), numToMd(int())] : null;
@@ -224,8 +263,8 @@ function unpack(bytes) {
   for (const x of d.src) { const rows = list(); if (rows.length) mo[x] = rows; }
   d.mo = Object.keys(mo).length ? mo : null;
   d.p30 = flags & 128 ? d.src.map(x => [x, int()]) : null;
-  d.co = [int(), share()]; d.pf = [int(), share()];
-  d.pm = masked(12, share);
+  if (extras & 16) d.hp = true;
+  else { d.co = [int(), share()]; d.pf = [int(), share()]; d.pm = masked(12, share); }
   if (extras & 1) d.ps = share();
   if (extras & 2) d.btw = int();
   if (extras & 4) d.rw = int();
@@ -305,21 +344,29 @@ function derive(d) {
   const md = i => new Date(jan1 + i * 864e5).toISOString().slice(5, 10);
   const iso = i => new Date(jan1 + i * 864e5).toISOString().slice(0, 10);
   const first = idx(d.fp);
-  const end = Math.max(first, Math.min(idx(d.iss), d.d.length - 1));
-  const active = [];
-  for (let i = first; i <= end; i++) if (d.d[i] !== '0') active.push(i);
-  let st = [1, first, first], gp = null, run = 1, runStart = active[0] ?? first;
-  for (let k = 1; k < active.length; k++) {
-    const gap = active[k] - active[k - 1];
-    if (gap === 1) run++;
-    else {
-      run = 1; runStart = active[k];
-      if (!gp || gap - 1 > gp[0]) gp = [gap - 1, active[k - 1] + 1, active[k] - 1];
+  const yearDays = Math.round((Date.UTC(y + 1, 0, 1) - jan1) / 864e5);
+  const end = Math.max(first, Math.min(idx(d.iss), yearDays - 1));
+  let st, gp, ad;
+  if (d.hg) {                // 잔디밭을 숨긴 영수증: 날짜별 값이 없고 계산된 숫자만 있다
+    ad = d.ad || 1; st = d.st; gp = d.gp;
+  } else {
+    const active = [];
+    for (let i = first; i <= end; i++) if (d.d[i] !== '0') active.push(i);
+    let best = [1, first, first], idle = null, run = 1, runStart = active[0] ?? first;
+    for (let k = 1; k < active.length; k++) {
+      const gap = active[k] - active[k - 1];
+      if (gap === 1) run++;
+      else {
+        run = 1; runStart = active[k];
+        if (!idle || gap - 1 > idle[0]) idle = [gap - 1, active[k - 1] + 1, active[k] - 1];
+      }
+      if (run > best[0]) best = [run, runStart, active[k]];
     }
-    if (run > st[0]) st = [run, runStart, active[k]];
+    ad = active.length || 1;
+    st = [best[0], md(best[1]), md(best[2])];
+    gp = idle && [idle[0], md(idle[1]), md(idle[2])];
   }
-  const ad = active.length || 1;
-  const months = d.pm.map((v, i) => [i + 1, v, d.mc[i]]).filter(m => m[1] !== null && m[2] >= 50);
+  const months = (d.pm || []).map((v, i) => [i + 1, v, d.mc[i]]).filter(m => m[1] !== null && m[2] >= 50);
   const pickMonth = sign => months.reduce((b, m) => (!b || sign * (m[1] - b[1]) > 0 || (m[1] === b[1] && m[2] > b[2]) ? m : b), null);
   // 모델 비율은 도구 구분 없이 하나로 합친다. Claude Code는 응답 수, Codex는 턴 수라 단위가 달라서
   // 도구 안에서 비율을 낸 뒤 그 도구의 최근 30일 프롬프트 비중을 곱해 더한다
@@ -348,12 +395,12 @@ function derive(d) {
   return {
     ...d, y, f: iso(first), e: iso(end), ad,
     ar: pct(ad, end - first + 1), pd: Math.round(d.p / ad), pss: Math.round(d.p / (d.s || 1) * 10) / 10,
-    st: [st[0], md(st[1]), md(st[2])], gp: gp && [gp[0], md(gp[1]), md(gp[2])],
+    st, gp,
     ns: pct(sum(d.h.slice(0, 6)), d.p), mrs: pct(sum(d.h.slice(6, 9)), d.p), ws: pct(d.w[5] + d.w[6], d.p),
     wm: wm && [wm[0], wm[1]], cm: cm && [cm[0], cm[1]], mo, tools,
   };
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { FORMAT_VERSION, TOOLS, ReceiptError, toolsOf, validate, normalize, parseHandoff, stamp, encode, decode, modelName, derive };
+  module.exports = { FORMAT_VERSION, TOOLS, ReceiptError, toolsOf, validate, normalize, fromAgent, parseHandoff, stamp, encode, decode, modelName, derive };
 }

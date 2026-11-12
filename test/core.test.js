@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { validate, normalize, parseHandoff, stamp, encode, decode, modelName, derive, ReceiptError } = require('../core.js');
+const { validate, normalize, parseHandoff, stamp, encode, decode, modelName, derive, fromAgent, ReceiptError } = require('../core.js');
 const { input, expected } = require('./fixture.json');
 
 const clone = () => structuredClone(input);
@@ -95,6 +95,57 @@ test('주소: 잘리거나 형식이 다르면 거절한다', async () => {
   assert.throws(() => parseHandoff('#j=not-json'), e => e.key === 'eIngest');
 });
 
+test('fromAgent: 에이전트가 넘긴 개수에서 합계, 평균, 비율을 낸다', () => {
+  const d = clone();
+  d.src = ['claude-code', 'codex']; d.bt = [['claude-code', 6000], ['codex', 2641]]; delete d.p; delete d.al;
+  d.pc = 8000; d.tc = 400000; d.ss = 2000; d.hs = 7600; d.ps = 300;
+  d.co = 432; d.pf = 86; d.pm = d.mc.map(n => (n === null ? 0 : 10));
+  d.mo = { 'claude-code': [['claude-opus-5-5', 10]] };
+  const out = fromAgent(d);
+  assert.equal(out.p, 8641);
+  assert.equal(out.al, 50);
+  assert.deepEqual([out.ss, out.hs, out.ps], [25, 95, 5]);
+  assert.deepEqual(out.co, [432, 5]);
+  assert.deepEqual(out.pf, [86, 1]);
+  assert.equal(out.pm[11], null);                        // 기록 범위 밖의 달
+  assert.equal(out.pm[1], Math.round(10 / d.mc[1] * 1000) / 10);
+  assert.equal(out.pc, undefined);
+  validate(out);
+});
+
+test('주소: 인내심 지표를 숨기면 그 값이 주소에서 빠진다', async () => {
+  const d = stamp(clone(), new Date(2026, 10, 12));
+  const shown = await encode(d);
+  const hidden = structuredClone(d); hidden.hp = true; for (const k of ['co', 'pf', 'pm']) delete hidden[k]; hidden.ph = [];
+  validate(hidden);
+  const packed = await encode(hidden);
+  assert.ok(packed.hash.length < shown.hash.length);
+  const back = await decode(packed.hash);
+  assert.equal(back.ok, true);
+  assert.equal(back.data.hp, true);
+  for (const k of ['co', 'pf', 'pm']) assert.equal(back.data[k], undefined, k);
+  assert.deepEqual(back.data.ph, []);
+  const out = derive(back.data);
+  assert.equal(out.wm, null);
+});
+
+test('주소: 잔디밭을 숨기면 날짜별 값이 빠지고 계산된 숫자는 남는다', async () => {
+  const d = stamp(clone(), new Date(2026, 10, 12));
+  const before = derive(d);
+  const hidden = structuredClone(d);
+  Object.assign(hidden, { hg: true, ad: before.ad, st: before.st, gp: before.gp });
+  delete hidden.d;
+  validate(hidden);
+  const packed = await encode(hidden);
+  assert.ok(packed.hash.length < (await encode(d)).hash.length - 60);
+  const back = await decode(packed.hash);
+  assert.equal(back.ok, true);
+  assert.equal(back.data.d, undefined);
+  const after = derive(back.data);
+  for (const k of ['ad', 'ar', 'pd', 'st', 'gp', 'f', 'e', 'y']) assert.deepEqual(after[k], before[k], k);
+  const bad = structuredClone(hidden); delete bad.st; rejects(bad, 'eMissing');
+});
+
 test('validate: 정상 값은 통과한다', () => validate(clone()));
 
 test('validate: Codex만 고르면 붙여넣기와 슬래시 항목이 없어도 통과한다', () => {
@@ -136,8 +187,9 @@ test('derive: 두 도구의 모델은 최근 30일 프롬프트 비중으로 가
 
 test('prompt.md: 두 도구의 기록 위치와 영수증 언어 줄이 있다', () => {
   const text = fs.readFileSync(path.join(__dirname, '..', 'prompt.md'), 'utf8');
-  for (const s of ['~/.claude/history.jsonl', '~/.codex/history.jsonl', '| `lg` | `"en"` |', '# Rules', '| `bt` |', '| `p30` |', 'No padding to align weekdays', 'Never type the URL yourself'])
+  for (const s of ['~/.claude/history.jsonl', '~/.codex/history.jsonl', '| `lg` | `"en"` |', '# Rules', '| `bt` |', '| `p30` |', '| `pc` |', 'Never type the URL yourself', 'system temp folder'])
     assert.ok(text.includes(s), s);
+  for (const gone of ['| `p` |', '| `al` |', 'Share: percent']) assert.ok(!text.includes(gone), gone);
   assert.doesNotMatch(text, /<!--/);
 });
 

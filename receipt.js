@@ -28,12 +28,13 @@ const L = {
     title: y => `${y} YEAR IN REVIEW`,
     nickname: 'Nickname', period: 'Period', issued: 'Issued',
     prompts: 'Prompts sent', sessions: 'Sessions', folders: 'Folders',
-    activeDays: 'Days used', dailyAvg: 'Per day', firstPrompt: 'First prompt',
+    activeDays: 'Days used', dailyAvg: 'Prompts per day', firstPrompt: 'First prompt',
     streak: 'Longest streak', gap: 'Longest break', busiestDay: 'Busiest day', busiestHour: 'Busiest hour',
     count: n => fmt(n), days: n => `${n} days`, chars: n => `${fmt(n)} chars`, times: n => `${fmt(n)}x`,
     grass: 'ACTIVITY', perDay: 'Prompts per day', orMore: n => `${n}+`,
     wdShort: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'], wd: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], wdCols: 3,
     month: i => MONTHS_EN[i], hourAxis: h => String(h).padStart(2, '0'), hourFull: h => `${h}:00`,
+    date: md => `${MONTHS_EN[+md.slice(0, 2) - 1]} ${+md.slice(3)}`,
     range: (a, b) => `${a} ~ ${b}`, from: x => `${x}~`, longestVal: n => `${fmt(n)} prompts`, perSessionVal: v => f1(v),
     byMonth: 'PROMPTS BY MONTH', byHour: 'PROMPTS BY HOUR', byWeekday: 'PROMPTS BY WEEKDAY',
     peakHour: 'Busiest time of day', night: 'Midnight to 6 AM', latest: 'Latest night', weekend: 'Weekends',
@@ -46,7 +47,7 @@ const L = {
     profByMonth: '[Swearing by month]', worst: 'Roughest month', calmest: 'Calmest month',
     monthPct: (m, v) => `${MONTHS_EN[m - 1]} ${f1(v)}%`,
     badges: 'ACHIEVEMENTS', noBadge: ['Just Browsing', 'nothing unusual'],
-    total: 'TOTAL', thanks: 'THANK YOU, COME AGAIN',
+    total: 'TOTAL', thanks: 'THANK YOU FOR PROMPTING', summary: '(SUMMARY)', seeFull: 'FULL RECEIPT HERE', omitted: '... and more',
   },
   ko: {
     title: y => `${y} 연간 결산`,
@@ -55,9 +56,10 @@ const L = {
     activeDays: '사용한 날', dailyAvg: '하루 평균', firstPrompt: '첫 프롬프트',
     streak: '최장 연속 사용', gap: '가장 길게 쉰 기간', busiestDay: '가장 많이 쓴 날', busiestHour: '가장 많이 쓴 1시간',
     count: n => `${fmt(n)}개`, days: n => `${n}일`, chars: n => `${fmt(n)}자`, times: n => `${fmt(n)}회`,
-    grass: '잔디밭', perDay: '하루 프롬프트 수', orMore: n => `${n} 이상`,
+    grass: '잔디밭', perDay: '하루 프롬프트 수', orMore: n => `${n}+`,
     wdShort: [...'월화수목금토일'], wd: [...'월화수목금토일'], wdCols: 2,
     month: i => `${i + 1}월`, hourAxis: h => `${h}시`, hourFull: h => `${h}시`,
+    date: md => `${+md.slice(0, 2)}월 ${+md.slice(3)}일`,
     range: (a, b) => `${a} ~ ${b}`, from: x => `${x}~`, longestVal: n => `${fmt(n)}개`, perSessionVal: v => `${f1(v)}개`,
     byMonth: '월별 프롬프트 수', byHour: '시간대별 프롬프트 수', byWeekday: '요일별 프롬프트 수',
     peakHour: '가장 많이 쓴 시간대', night: '새벽 0시 ~ 6시 비중', latest: '새벽에 가장 늦게 보낸 시각', weekend: '주말 비중',
@@ -70,7 +72,7 @@ const L = {
     profByMonth: '[월별 욕설 비율]', worst: '가장 험했던 달', calmest: '가장 평온했던 달',
     monthPct: (m, v) => `${m}월 ${f1(v)}%`,
     badges: '획득 칭호', noBadge: ['평범한 손님', '해당 조건 없음'],
-    total: '합계', thanks: '이용해 주셔서 감사합니다',
+    total: '합계', thanks: '이용해 주셔서 감사합니다', summary: '(요약)', seeFull: '전체 영수증은 여기서', omitted: '... 이하 생략',
   },
 };
 
@@ -82,19 +84,19 @@ const BADGES = [
   // 시간
   [d => d.ns >= 15, ['Night Owl', d => `late night ${f1(d.ns)}% (15%+)`], ['올빼미', d => `새벽 ${f1(d.ns)}% (15%+)`]],
   [d => d.mrs >= 15, ['Early Bird', d => `morning ${f1(d.mrs)}% (15%+)`], ['미라클 모닝', d => `아침 ${f1(d.mrs)}% (15%+)`]],
-  [d => d.ld && d.ld[0] >= '05:00', ['Saw the Sunrise', d => `still up at ${d.ld[0]} (05:00+)`], ['해 뜨는 거 봄', d => `새벽 ${d.ld[0]}까지 (05:00+)`]],
-  [d => afterHours(d) < 10, ['Nine to Five', d => `after hours ${f1(afterHours(d))}% (under 10%)`], ['칼퇴', d => `퇴근 후 ${f1(afterHours(d))}% (10% 미만)`]],
+  [d => d.ld && d.ld[0] >= '05:00', ['Saw the Sunrise', d => `up at ${d.ld[0]} (05:00+)`], ['해 뜨는 거 봄', d => `새벽 ${d.ld[0]}까지 (05:00+)`]],
+  [d => afterHours(d) < 10, ['Nine to Five', d => `after hours ${f1(afterHours(d))}% (<10%)`], ['칼퇴', d => `퇴근 후 ${f1(afterHours(d))}% (<10%)`]],
   [d => d.ws >= 25, ['Weekend Warrior', d => `weekend ${f1(d.ws)}% (25%+)`], ['주말 전사', d => `주말 ${f1(d.ws)}% (25%+)`]],
   // 꾸준함
   [d => d.st[0] >= 14, ['Marathoner', d => `${d.st[0]}-day streak (14+)`], ['마라토너', d => `연속 ${d.st[0]}일 (14+)`]],
   [d => d.ar >= 70, ['Regular', d => `used on ${f1(d.ar)}% of days (70%+)`], ['단골', d => `사용한 날 ${f1(d.ar)}% (70%+)`]],
   [d => d.gp && d.gp[0] >= 14, ['Ghost', d => `${d.gp[0]} days away (14+)`], ['잠수', d => `${d.gp[0]}일 쉼 (14+)`]],
-  [d => d.p >= 10000, ['VIP', d => `${fmt(d.p)} prompts (10,000+)`], ['VIP 고객', d => `프롬프트 ${fmt(d.p)}개 (10,000+)`]],
+  [d => d.p >= 10000, ['VIP', d => `${fmt(d.p)} prompts (10k+)`], ['VIP 고객', d => `프롬프트 ${fmt(d.p)}개 (10k+)`]],
   // 몰아치기
   [d => d.bh[0] >= 60, ['Runaway Train', d => `${d.bh[0]} in one hour (60+)`], ['폭주기관차', d => `1시간 ${d.bh[0]}개 (60+)`]],
-  [d => cram(d) >= 5, ['Crammer', d => `busiest day ${f1(cram(d))}x the average (5x+)`], ['벼락치기', d => `최다일이 평균의 ${f1(cram(d))}배 (5배+)`]],
-  [d => d.ls >= 200, ['Last One Standing', d => `${fmt(d.ls)} in one session (200+)`], ['끝장 토론', d => `한 세션 ${fmt(d.ls)}개 (200+)`]],
-  [d => d.pss >= 30, ['Deep Diver', d => `${f1(d.pss)} prompts per session (30+)`], ['한 우물', d => `세션당 ${f1(d.pss)}개 (30+)`]],
+  [d => cram(d) >= 5, ['Crammer', d => `${f1(cram(d))}x a normal day (5x+)`], ['벼락치기', d => `평소의 ${f1(cram(d))}배 (5배+)`]],
+  [d => d.ls >= 200, ['Filibuster', d => `${fmt(d.ls)} in one session (200+)`], ['끝장 토론', d => `한 세션 ${fmt(d.ls)}개 (200+)`]],
+  [d => d.pss >= 30, ['Deep Diver', d => `${f1(d.pss)} per session (30+)`], ['한 우물', d => `세션당 ${f1(d.pss)}개 (30+)`]],
   // 일하는 방식
   [d => d.mp >= 5, ['Shadow Clone', d => `${d.mp} sessions at once (5+)`], ['분신술', d => `동시 세션 ${d.mp}개 (5+)`]],
   [d => d.pj >= 100, ['Collector', d => `${fmt(d.pj)} folders (100+)`], ['벌려놓기 장인', d => `작업 폴더 ${fmt(d.pj)}개 (100+)`]],
@@ -107,9 +109,9 @@ const BADGES = [
   [d => d.btw >= 50, ['Rabbit Hole', d => `/btw ${d.btw}x (50+)`], ['삼천포', d => `/btw ${d.btw}회 (50+)`]],
   [d => d.rw >= 50, ['Time Traveler', d => `/rewind ${d.rw}x (50+)`], ['시간여행자', d => `/rewind ${d.rw}회 (50+)`]],
   // 성격
-  [d => d.co[1] >= 5, ["Devil's Advocate", d => `"no" ${f1(d.co[1])}% (5%+)`], ['아니무새', d => `"아니" ${f1(d.co[1])}% (5%+)`]],
-  [d => d.pf[1] >= 3, ['Hothead', d => `swearing ${f1(d.pf[1])}% (3%+)`], ['다혈질', d => `욕설 ${f1(d.pf[1])}% (3%+)`]],
-  [d => d.p >= 300 && d.pf[1] < 0.3, ['Zen', d => `swearing ${f1(d.pf[1])}% (under 0.3%)`], ['해탈', d => `욕설 ${f1(d.pf[1])}% (0.3% 미만)`]],
+  [d => d.co && d.co[1] >= 5, ["Devil's Advocate", d => `"no" ${f1(d.co[1])}% (5%+)`], ['아니무새', d => `"아니" ${f1(d.co[1])}% (5%+)`]],
+  [d => d.pf && d.pf[1] >= 3, ['Hothead', d => `swearing ${f1(d.pf[1])}% (3%+)`], ['다혈질', d => `욕설 ${f1(d.pf[1])}% (3%+)`]],
+  [d => d.pf && d.p >= 300 && d.pf[1] < 0.3, ['Zen', d => `swearing ${f1(d.pf[1])}% (<0.3%)`], ['해탈', d => `욕설 ${f1(d.pf[1])}% (<0.3%)`]],
 ];
 
 const measure = document.createElement('canvas').getContext('2d');
@@ -165,8 +167,10 @@ class Pen {
   row(label, value = '', bold = false) {
     this.text(PM, this.y, label, FS, bold);
     if (value) {
-      const fits = this.width(label) + this.width(value) + 12 <= PW;
-      const size = fits ? FS : FS_SMALL;          // 한 줄에 안 들어가면 값만 작은 글꼴
+      // 이름과 값 사이는 두 칸 이상 띄운다. 안 들어가면 값만 작은 글꼴로, 그래도 안 되면 값을 다음 줄로 내린다
+      const gap = FS, room = PW - this.width(label) - gap;
+      const size = this.width(value) <= room ? FS : FS_SMALL;
+      if (this.width(value, size) > room) this.y += LH;
       this.text(PM + PW, this.y + (FS - size), value, size, bold, 'ra');
     }
     this.y += LH;
@@ -272,7 +276,7 @@ function hbars(pen, values, labels, fmtValue, labCols = 2, valCols = 7) {
   pen.y += 4;
 }
 
-function qrcodeBlock(pen, url) {
+function qrcodeBlock(pen, url, maxMod = 6) {
   // 주소의 # 앞은 바이트 모드, 뒤는 영숫자 모드로 담는다
   const at = url.indexOf('#') + 1;
   const q = qrcode(0, 'M');
@@ -280,7 +284,7 @@ function qrcodeBlock(pen, url) {
   q.addData(url.slice(at), 'Alphanumeric');
   q.make();
   const n = q.getModuleCount(), quiet = 4;
-  const mod = Math.min(6, Math.floor(PW / (n + 2 * quiet)));
+  const mod = Math.min(maxMod, Math.floor(PW / (n + 2 * quiet)));
   const size = (n + 2 * quiet) * mod;
   const x0 = Math.round(PM + (PW - size) / 2) + quiet * mod;
   const y0 = pen.y + quiet * mod;
@@ -289,6 +293,67 @@ function qrcodeBlock(pen, url) {
       if (q.isDark(r, c)) pen.rect(x0 + c * mod, y0 + r * mod, x0 + (c + 1) * mod, y0 + (r + 1) * mod);
   pen.y += size;
   return n;
+}
+
+function badgesOf(d, T) {
+  const got = BADGES.filter(([cond]) => cond(d)).map(b => { const [name, why] = b[T === L.ko ? 2 : 1]; return [name, why(d)]; });
+  return got.length ? got : [T.noBadge];
+}
+
+function footer(pen, d, url, check, maxMod, lead) {
+  pen.rule('=');
+  pen.text(PM, pen.y, pen.T.total, FS * 2);
+  pen.text(PM + PW, pen.y, `${fmt(d.p)} PROMPTS`, FS * 2, false, 'ra');
+  pen.y += FS * 2 + 10;
+  pen.rule('=');
+  pen.gap(12);
+  // 페이지 주소: 전체 영수증은 QR 위, 요약 카드는 안내 문구를 위에 두고 주소는 QR 아래
+  const site = url.split('#')[0].replace(/\/$/, '');
+  pen.center(lead || site);
+  qrcodeBlock(pen, url, maxMod);
+  if (lead) pen.center(site);
+  pen.gap(12);
+  pen.center(pen.T.thanks);
+  pen.gap(4);
+  pen.center(`${check.slice(0, 4)}-${check.slice(4)}`, FS_SMALL);      // 검증 번호는 맨 끝
+  pen.gap(20);
+}
+
+// 공유용 요약 카드: 머리, 핵심 숫자, 잔디밭, 시간대, 일하는 방식과 인내심의 핵심 줄, 칭호 몇 개, QR
+const CARD_BADGES = 3;
+function layoutCard(pen, d, url, check) {
+  const T = pen.T;
+  pen.center(d.tools.map(x => TOOL_NAMES[x].toUpperCase()).join(' + '));
+  pen.gap(4);
+  // 제목 뒤에 (요약). 한 줄에 안 들어가면 다음 줄에 기본 글꼴로
+  const title = `${T.title(d.y)} ${T.summary}`;
+  if (pen.width(title, FS * 2) <= PW) pen.center(title, FS * 2, FS * 2 + 14);
+  else { pen.center(T.title(d.y), FS * 2, FS * 2 + 4); pen.center(T.summary, FS, FS + 14); }
+  pen.rule();
+  pen.row(T.nickname, d.n);
+  pen.row(T.prompts, T.count(d.p), true);
+  pen.row(T.activeDays, `${T.days(d.ad)} (${f1(d.ar)}%)`);
+  pen.row(T.streak, `${T.days(d.st[0])} (${T.range(T.date(d.st[1]), T.date(d.st[2]))})`);
+  pen.row(T.busiestDay, `${T.count(d.bd[0])} (${T.date(d.bd[1])})`);
+  pen.row('  ' + T.omitted);
+  if (!d.hg) { pen.band(T.grass); heatmap(pen, d); }
+  pen.band(T.byHour);
+  columns(pen, d.h, d.h.map((_, h) => (h % 6 === 0 ? T.hourAxis(h) : '')), v => T.count(v));
+  pen.band(T.style);
+  pen.row(T.typed, T.chars(d.tc));
+  pen.row(T.longest, T.longestVal(d.ls));
+  pen.row(T.parallel, T.count(d.mp));
+  pen.row('  ' + T.omitted);
+  if (!d.hp) {
+    pen.band(T.patience);
+    pen.row(T.correction, `${T.count(d.co[0])} (${f1(d.co[1])}%)`);
+    pen.row(T.profanity, `${T.count(d.pf[0])} (${f1(d.pf[1])}%)`);
+  }
+  pen.band(T.badges);
+  const got = badgesOf(d, T);
+  for (const [name, why] of got.slice(0, CARD_BADGES)) pen.row('* ' + name, why);
+  if (got.length > CARD_BADGES) pen.row('  ' + T.omitted);
+  footer(pen, d, url, check, 4, T.seeFull);
 }
 
 function layout(pen, d, url, check) {
@@ -310,13 +375,12 @@ function layout(pen, d, url, check) {
   pen.row(T.activeDays, `${T.days(d.ad)} (${f1(d.ar)}%)`);
   pen.row(T.dailyAvg, T.count(d.pd));
   pen.row(T.firstPrompt, d.fp);
-  pen.row(T.streak, `${T.days(d.st[0])} (${range(d.st[1], d.st[2])})`);
-  if (d.gp) pen.row(T.gap, `${T.days(d.gp[0])} (${range(d.gp[1], d.gp[2])})`);
-  pen.row(T.busiestDay, `${T.count(d.bd[0])} (${d.bd[1]})`);
-  pen.row(T.busiestHour, `${T.count(d.bh[0])} (${T.from(d.bh[1])})`);
+  pen.row(T.streak, `${T.days(d.st[0])} (${range(T.date(d.st[1]), T.date(d.st[2]))})`);
+  if (d.gp) pen.row(T.gap, `${T.days(d.gp[0])} (${range(T.date(d.gp[1]), T.date(d.gp[2]))})`);
+  pen.row(T.busiestDay, `${T.count(d.bd[0])} (${T.date(d.bd[1])})`);
+  pen.row(T.busiestHour, `${T.count(d.bh[0])} (${T.from(`${T.date(d.bh[1].slice(0, 5))} ${d.bh[1].slice(6)}`)})`);
 
-  pen.band(T.grass);
-  heatmap(pen, d);
+  if (!d.hg) { pen.band(T.grass); heatmap(pen, d); }
 
   pen.band(T.byMonth);
   columns(pen, d.mc, d.mc.map((_, i) => T.month(i)), v => T.count(v));
@@ -325,7 +389,7 @@ function layout(pen, d, url, check) {
   columns(pen, d.h, d.h.map((_, h) => (h % 6 === 0 ? T.hourAxis(h) : '')), v => T.count(v));
   pen.row(T.peakHour, T.hourFull(d.h.indexOf(Math.max(...d.h))));
   pen.row(T.night, `${f1(d.ns)}%`);
-  if (d.ld) pen.row(T.latest, `${d.ld[0]} (${d.ld[1]})`);
+  if (d.ld) pen.row(T.latest, `${d.ld[0]} (${T.date(d.ld[1])})`);
 
   pen.band(T.byWeekday);
   hbars(pen, d.w, T.wd, v => T.count(v), T.wdCols, 8);
@@ -356,31 +420,21 @@ function layout(pen, d, url, check) {
     hbars(pen, d.mo.s.map(x => x[1]), names, v => `${f1(v)}%`, cols, 6);
   }
 
-  pen.band(T.patience);
-  pen.row(T.correction, `${T.count(d.co[0])} (${f1(d.co[1])}%)`);
-  pen.row(T.profanity, `${T.count(d.pf[0])} (${f1(d.pf[1])}%)`);
-  pen.gap(6);
-  pen.row(T.profByMonth);
-  columns(pen, d.pm, d.pm.map((_, i) => T.month(i)), v => `${f1(v)}%`, 64);
-  if (d.wm) pen.row(T.worst, T.monthPct(d.wm[0], d.wm[1]));
-  if (d.cm) pen.row(T.calmest, T.monthPct(d.cm[0], d.cm[1]));
+  if (!d.hp) {
+    pen.band(T.patience);
+    pen.row(T.correction, `${T.count(d.co[0])} (${f1(d.co[1])}%)`);
+    pen.row(T.profanity, `${T.count(d.pf[0])} (${f1(d.pf[1])}%)`);
+    pen.gap(6);
+    pen.row(T.profByMonth);
+    columns(pen, d.pm, d.pm.map((_, i) => T.month(i)), v => `${f1(v)}%`, 64);
+    if (d.wm) pen.row(T.worst, T.monthPct(d.wm[0], d.wm[1]));
+    if (d.cm) pen.row(T.calmest, T.monthPct(d.cm[0], d.cm[1]));
+  }
 
   pen.band(T.badges);
-  const got = BADGES.filter(([cond]) => cond(d)).map(b => { const [name, why] = b[ko ? 2 : 1]; return [name, why(d)]; });
-  for (const [name, why] of got.length ? got : [T.noBadge]) pen.row('* ' + name, why);
+  for (const [name, why] of badgesOf(d, T)) pen.row('* ' + name, why);
 
-  pen.rule('=');
-  pen.text(PM, pen.y, T.total, FS * 2);
-  pen.text(PM + PW, pen.y, `${fmt(d.p)} PROMPTS`, FS * 2, false, 'ra');
-  pen.y += FS * 2 + 10;
-  pen.rule('=');
-  pen.gap(12);
-  pen.center(url.split('#')[0].replace(/\/$/, ''));      // 페이지 주소는 QR 위에 기본 글꼴로
-  qrcodeBlock(pen, url);
-  pen.center(`${check.slice(0, 4)}-${check.slice(4)}`, FS_SMALL);
-  pen.gap(12);
-  pen.center(T.thanks);
-  pen.gap(24);
+  footer(pen, d, url, check, 6);
 }
 
 function threshold(canvas) {    // 감열지처럼 1비트로
@@ -431,19 +485,20 @@ function compose(paper) {
   return out;
 }
 
-async function renderReceipt(d, url, check, lang) {
+async function renderReceipt(d, url, check, lang, card = false) {
   const T = L[lang] || L.en;
   d = derive(d);
   await Promise.all([16, 24, 48].map(s => document.fonts.load(`${s * S}px ${FONT}`, '가A')));
+  const draw = card ? layoutCard : layout;
   const dry = new Pen(null, T);
-  layout(dry, d, url, check);
+  draw(dry, d, url, check);
   const paper = document.createElement('canvas');
   paper.width = PAPER_W * S;
   paper.height = Math.round(dry.y * S);
   const ctx = paper.getContext('2d');
   ctx.fillStyle = PAPER;
   ctx.fillRect(0, 0, paper.width, paper.height);
-  layout(new Pen(ctx, T), d, url, check);
+  draw(new Pen(ctx, T), d, url, check);
   threshold(paper);
   return compose(paper);
 }

@@ -4,10 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>vibe-check</title>
-<meta name="description" content="Your year with a coding agent, printed as a receipt.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta name="description" content="A receipt for your year with a coding agent.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="vibe-check">
-<meta property="og:description" content="Your year with a coding agent, printed as a receipt.">
+<meta property="og:description" content="A receipt for your year with a coding agent.">
 <meta property="og:url" content="https://luftaquila.github.io/vibe-check/">
 <meta property="og:image" content="https://luftaquila.github.io/vibe-check/og.png">
 <meta property="og:image:width" content="1200">
@@ -43,45 +44,79 @@ body {
   overflow-wrap: anywhere;
 }
 main { max-width: 720px; margin: 0 auto; display: grid; gap: 28px; grid-template-columns: minmax(0, 1fr); }
-h1, h2, .mono, button, .btn { font-family: "NeoDGM Code", ui-monospace, monospace; }
+h1, h2, button, .btn { font-family: "NeoDGM Code", ui-monospace, monospace; }
 h1 { font-size: 36px; line-height: 1.1; margin: 0; letter-spacing: -0.01em; }
 h2 { font-size: 20px; margin: 0 0 8px; }
 p { margin: 0; }
 header { display: grid; gap: 10px; }
-header p { color: var(--muted); text-wrap: pretty; }
+header p { color: var(--muted); text-wrap: pretty; white-space: pre-line; }
 section { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
 ol, ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
 a { color: var(--ink); }
-.receipt canvas { display: block; width: 100%; max-width: 696px; height: auto; margin: 0 auto; }
-.status { padding: 10px 14px; background: var(--paper); border: 1px solid var(--line); border-left-width: 4px; }
-.status.ok { border-left-color: var(--ok); }
-.status.bad { border-left-color: var(--bad); }
-.actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; max-width: 520px; }
-.actions button, .actions .btn {
-  display: flex; align-items: center; justify-content: center; height: 42px; padding: 0 14px;
-  font-size: 15px; line-height: 1; white-space: nowrap;
-}
+.note { color: var(--muted); font-size: 14px; }
+footer { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+
+/* 머리줄 */
+.top { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.tools { display: flex; align-items: center; gap: 16px; }
+.gh { display: flex; color: var(--ink); }
+.gh:hover { color: var(--muted); }
+.lang { display: flex; align-items: center; gap: 8px; font: 14px "NeoDGM Code", ui-monospace, monospace; }
+
+/* 버튼 */
 button, .btn {
   font-size: 15px; padding: 8px 14px; border: 2px solid var(--ink); background: var(--paper);
   color: var(--ink); cursor: pointer; text-decoration: none; border-radius: 0;
 }
 button:hover, .btn:hover { background: var(--ink); color: var(--paper); }
 button:focus-visible, .btn:focus-visible, a:focus-visible { outline: 3px solid #3a6fd8; outline-offset: 2px; }
+
+/* 스위치 */
+.sw { width: 46px; height: 26px; padding: 2px; display: flex; align-items: center; flex: none; }
+.sw:hover { background: var(--paper); }
+.sw .knob { width: 18px; height: 18px; background: var(--ink); transition: transform .15s; }
+.sw[aria-checked="true"] .knob { transform: translateX(20px); }
+.sw:disabled { opacity: .45; cursor: default; }
+.sw.onoff[aria-checked="true"] { background: var(--ink); }
+.sw.onoff[aria-checked="true"] .knob { background: var(--paper); }
+.sw.onoff[aria-checked="false"] .knob { background: var(--line); }
+@media (prefers-reduced-motion: reduce) { .sw .knob { transition: none; } }
+
+/* 영수증 화면: 윗줄은 버튼, 아랫줄은 표시 스위치 */
+.status { padding: 10px 14px; background: var(--paper); border: 1px solid var(--line); border-left-width: 4px; }
+.status.bad { border-left-color: var(--bad); }
+.panel { background: var(--paper); border: 1px solid var(--line); }
+.bar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; padding: 12px; }
+.tabs { display: flex; }
+.tabs button + button { border-left: 0; }
+.tabs button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.bar button, .make .btn {
+  display: flex; align-items: center; justify-content: center; height: 38px; padding: 0 14px;
+  font-size: 15px; line-height: 1; white-space: nowrap;
+}
+.hides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 22px; justify-items: start; padding: 12px; border-top: 1px solid var(--line); }
+.hides-title { grid-column: 1 / -1; }
+.hides { font: 15px "NeoDGM Code", ui-monospace, monospace; }
+.hides label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.hides-title { color: var(--muted); }
+.make { display: flex; justify-content: center; }
+/* 좁은 화면: 탭과 버튼은 줄을 꽉 채우고, 스위치는 한 줄에 하나씩 이름은 왼쪽 스위치는 오른쪽 */
+@media (max-width: 560px) {
+  .bar { flex-direction: column; align-items: stretch; }
+  .tabs button, .actions button { flex: 1; }
+  .hides { grid-template-columns: minmax(0, 1fr); gap: 12px; justify-items: stretch; }
+  .hides label { flex-direction: row-reverse; justify-content: space-between; }
+}
+.receipt canvas { display: block; width: 100%; max-width: 696px; height: auto; margin: 0 auto; }
+
+/* 첫 화면 */
 .prompt-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 pre.prompt {
   margin: 0; padding: 16px; background: var(--paper); border: 1px solid var(--line);
   white-space: pre-wrap; word-break: break-word; font: 14px/1.6 "NeoDGM Code", ui-monospace, monospace;
   max-height: 420px; overflow: auto;
 }
-.top { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
-.lang { display: flex; align-items: center; gap: 8px; font: 14px "NeoDGM Code", ui-monospace, monospace; }
-#lang { width: 46px; height: 26px; padding: 2px; display: flex; align-items: center; }
-#lang:hover { background: var(--paper); }
-#lang .knob { width: 18px; height: 18px; background: var(--ink); transition: transform .15s; }
-#lang[aria-checked="true"] .knob { transform: translateX(20px); }
-@media (prefers-reduced-motion: reduce) { #lang .knob { transition: none; } }
-.note { color: var(--muted); font-size: 14px; }
-footer { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 14px; }
 </style>
 </head>
 <body>
@@ -89,17 +124,36 @@ footer { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; g
   <header>
     <div class="top">
       <h1>vibe-check</h1>
-      <div class="lang"><span aria-hidden="true">EN</span><button id="lang" type="button" role="switch" aria-checked="false" aria-label="한국어"><span class="knob"></span></button><span aria-hidden="true">한국어</span></div>
+      <div class="tools">
+      <a class="gh" href="https://github.com/luftaquila/vibe-check" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 16 16" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
+      <div class="lang"><span aria-hidden="true">EN</span><button id="lang" class="sw" type="button" role="switch" aria-checked="false" aria-label="한국어"><span class="knob"></span></button><span aria-hidden="true">한국어</span></div>
+      </div>
     </div>
-    <p data-i18n="tagline">Your year with a coding agent, printed as a receipt. Works with Claude Code and Codex.</p>
+    <p data-i18n="tagline">A receipt for your year with a coding agent.
+Works with Claude Code and Codex.</p>
   </header>
 
   <section id="viewer" hidden>
     <p id="status" class="status" role="status" hidden></p>
-    <div class="actions">
-      <button id="save" type="button" hidden data-i18n="save">Save image</button>
-      <button id="link" type="button" hidden data-i18n="copyLink">Copy link</button>
-      <a class="btn" href="./" data-i18n="make">Make my receipt</a>
+    <div class="make"><a id="make" class="btn" href="./" data-i18n="make">Make my receipt</a></div>
+    <div id="panel" class="panel" hidden>
+      <div class="bar">
+        <div id="views" class="tabs" role="tablist" hidden>
+          <button type="button" role="tab" data-view="full" aria-selected="true" data-i18n="viewFull">Full receipt</button>
+          <button type="button" role="tab" data-view="card" aria-selected="false" data-i18n="viewCard">Summary card</button>
+        </div>
+        <div class="actions">
+          <button id="save" type="button" hidden data-i18n="save">Save image</button>
+          <button id="link" type="button" hidden data-i18n="copyLink">Copy link</button>
+        </div>
+      </div>
+      <div id="hides" class="hides" hidden>
+        <span class="hides-title" data-i18n="showTitle">Show on receipt</span>
+        <label data-views="full card"><button id="hide-hg" class="sw onoff" type="button" role="switch" aria-checked="true"><span class="knob"></span></button><span data-i18n="showHg">Activity</span></label>
+        <label data-views="full"><button id="hide-ph" class="sw onoff" type="button" role="switch" aria-checked="true"><span class="knob"></span></button><span data-i18n="showPh">Short prompt list</span></label>
+        <label data-views="full"><button id="hide-mo" class="sw onoff" type="button" role="switch" aria-checked="true"><span class="knob"></span></button><span data-i18n="showMo">Models, last 30 days</span></label>
+        <label data-views="full card"><button id="hide-pat" class="sw onoff" type="button" role="switch" aria-checked="true"><span class="knob"></span></button><span data-i18n="showPat">Patience</span></label>
+      </div>
     </div>
     <div id="receipt" class="receipt"></div>
   </section>
@@ -129,7 +183,6 @@ footer { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; g
   </section>
 
   <footer>
-    <a href="https://github.com/luftaquila/vibe-check">GitHub</a>
     <span data-i18n="font"></span>
     <span data-i18n="qr"></span>
   </footer>
