@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>vibe-check</title>
+<meta name="description" content="Your year with a coding agent, printed as a receipt.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="vibe-check">
+<meta property="og:description" content="Your year with a coding agent, printed as a receipt.">
+<meta property="og:url" content="https://luftaquila.github.io/vibe-check/">
+<meta property="og:image" content="https://luftaquila.github.io/vibe-check/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+@font-face {
+  font-family: "NeoDGM Code";
+  src: url("fonts/neodgm_code.woff2") format("woff2");
+  font-display: block;
+}
+:root {
+  --bg: #e0e2e6;
+  --ink: #161616;
+  --muted: #555a63;
+  --paper: #fdfdfb;
+  --line: #c4c8cf;
+  --ok: #0b6b2f;
+  --bad: #a3221a;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.65 system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  padding-block: 40px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  word-break: keep-all;        /* 한글이 단어 중간에서 끊기지 않게 */
+  overflow-wrap: anywhere;
+}
+main { max-width: 720px; margin: 0 auto; display: grid; gap: 28px; }
+h1, h2, .mono, button, .btn { font-family: "NeoDGM Code", ui-monospace, monospace; }
+h1 { font-size: 36px; line-height: 1.1; margin: 0; letter-spacing: -0.01em; }
+h2 { font-size: 20px; margin: 0 0 8px; }
+p { margin: 0; }
+header { display: grid; gap: 10px; }
+header p { color: var(--muted); text-wrap: pretty; }
+section { display: grid; gap: 14px; }
+ol, ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+a { color: var(--ink); }
+.receipt canvas { display: block; width: 100%; max-width: 696px; height: auto; margin: 0 auto; }
+.status { padding: 10px 14px; background: var(--paper); border: 1px solid var(--line); border-left-width: 4px; }
+.status.ok { border-left-color: var(--ok); }
+.status.bad { border-left-color: var(--bad); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+button, .btn {
+  font-size: 15px; padding: 8px 14px; border: 2px solid var(--ink); background: var(--paper);
+  color: var(--ink); cursor: pointer; text-decoration: none; border-radius: 0;
+}
+button:hover, .btn:hover { background: var(--ink); color: var(--paper); }
+button:focus-visible, .btn:focus-visible, a:focus-visible { outline: 3px solid #3a6fd8; outline-offset: 2px; }
+.prompt-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+pre.prompt {
+  margin: 0; padding: 16px; background: var(--paper); border: 1px solid var(--line);
+  white-space: pre-wrap; word-break: break-word; font: 14px/1.6 "NeoDGM Code", ui-monospace, monospace;
+  max-height: 420px; overflow: auto;
+}
+.top { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.lang { display: flex; align-items: center; gap: 8px; font: 14px "NeoDGM Code", ui-monospace, monospace; }
+#lang { width: 46px; height: 26px; padding: 2px; display: flex; align-items: center; }
+#lang:hover { background: var(--paper); }
+#lang .knob { width: 18px; height: 18px; background: var(--ink); transition: transform .15s; }
+#lang[aria-checked="true"] .knob { transform: translateX(20px); }
+@media (prefers-reduced-motion: reduce) { #lang .knob { transition: none; } }
+.note { color: var(--muted); font-size: 14px; }
+footer { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="top">
+      <h1>vibe-check</h1>
+      <div class="lang"><span aria-hidden="true">EN</span><button id="lang" type="button" role="switch" aria-checked="false" aria-label="한국어"><span class="knob"></span></button><span aria-hidden="true">한국어</span></div>
+    </div>
+    <p data-i18n="tagline">Your year with a coding agent, printed as a receipt. Works with Claude Code for now.</p>
+  </header>
+
+  <section id="viewer" hidden>
+    <p id="status" class="status" role="status"></p>
+    <div class="actions">
+      <button id="save" type="button" hidden data-i18n="save">Save image</button>
+      <button id="link" type="button" hidden data-i18n="copyLink">Copy link</button>
+      <a class="btn" href="./" data-i18n="make">Make my receipt</a>
+    </div>
+    <div id="receipt" class="receipt"></div>
+  </section>
+
+  <section id="landing" hidden>
+    <section>
+      <h2 data-i18n="howTitle">How it works</h2>
+      <ol>
+        <li data-i18n="how1"></li>
+        <li data-i18n="how2"></li>
+        <li data-i18n="how3"></li>
+      </ol>
+      <p class="note" data-i18n="lexicon"></p>
+    </section>
+    <section>
+      <div class="prompt-head"><h2 data-i18n="promptTitle">Prompt</h2><button id="copy" type="button" data-i18n="copy">Copy</button></div>
+      <pre id="prompt" class="prompt"></pre>
+    </section>
+    <section>
+      <h2 data-i18n="dataTitle">Where your data goes</h2>
+      <ul>
+        <li data-i18n="data1"></li>
+        <li data-i18n="data2"></li>
+      </ul>
+    </section>
+    <section>
+      <h2 data-i18n="sampleTitle">Sample</h2>
+      <div id="sample" class="receipt"></div>
+    </section>
+  </section>
+
+  <footer>
+    <a href="https://github.com/luftaquila/vibe-check">GitHub</a>
+    <span data-i18n="font"></span>
+    <span data-i18n="qr"></span>
+  </footer>
+</main>
+<script src="vendor/qrcode.js"></script>
+<script src="core.js"></script>
+<script src="receipt.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
