@@ -17,6 +17,7 @@ const UI = {
     dataTitle: 'Where your data goes',
     data1: 'Your history is counted only on your computer. What you typed stays off the receipt, apart from your five most used short prompts.',
     data2: 'Anyone you give the URL or QR code to can read the receipt.',
+    sample: 'Sample receipt',
     printTitle: 'Print it!',
     print1: 'It is a receipt, so it prints. The "Save for print" link under the receipt saves an image that fits an 80mm receipt printer exactly (576 dots wide). Paper not included.',
     save: 'Save image', savePrint: 'Save for print (80mm, no margins)', viewFull: 'Full receipt', viewCard: 'Summary card', showTitle: 'Show on receipt', showHg: 'Activity', showPh: 'Short prompt list', showPat: 'Patience', showMo: 'Models, last 30 days', make: 'Make my receipt',
@@ -49,6 +50,7 @@ const UI = {
     dataTitle: '내 기록은 어디로 가나요',
     data1: '기록은 내 컴퓨터에서만 세고, 영수증에는 자주 쓴 짧은 프롬프트 5개 말고는 내가 쓴 문장이 들어가지 않습니다.',
     data2: '주소나 QR을 받은 사람은 영수증 내용을 볼 수 있습니다.',
+    sample: '예시 영수증 보기',
     printTitle: '진짜 영수증으로 뽑기',
     print1: '영수증 프린터가 있다면 진짜 종이로 뽑을 수 있습니다. 영수증 아래 "인쇄용으로 저장"을 누르면 80mm 감열지 폭(576dot)에 딱 맞는 이미지가 저장됩니다. 종이값은 책임지지 않습니다.',
     save: '이미지 저장', savePrint: '인쇄용으로 저장 (80mm, 여백 없음)', viewFull: '전체 영수증', viewCard: '요약 카드', showTitle: '영수증에 표시', showHg: '잔디밭', showPh: '짧은 프롬프트 목록', showPat: '인내심 지표', showMo: '최근 30일 사용 모델', make: '내 영수증 만들기',
@@ -79,12 +81,16 @@ let lang = pick(fromQuery) || pick(chosen) || (/^ko\b/i.test(navigator.language 
 const explicit = () => pick(fromQuery) || pick(chosen);
 const t = () => UI[lang];
 
+// 첫 화면의 예시 영수증. 보는 사람의 언어로 열리게 주소에 언어를 붙인다
+const SAMPLE = '#1.EA$$FP1LX5TMB$0M34OELW4QTQ8ICU+1I$DJ2Z3A6+DNJ1XM6SC5J717GW1IG5ZKFU4WBYEA8P57$0EJRHK-J9-L9BWMXNJ-3Q5FI76IUWYCI6I2MO5II7F3ERMYDVUX65HNEE$S5WVL8LW74HUQN2+C+IY-MW9O$32LV-KD8MUQBPP6QQQSASSFCHG+8C5RLMPL$7BYSK9-5DAVZM7KV9OF56A0DSSIIU68OH9VDZNZYMKJJBPTY6+KKFD9X+NSBWV06STCI8PM7ETIY$2U5BY17L0BDSDZ3U8N+I75WE-TBFYNKDDEU-NK2WK-Y$DCPNY9HJYNHO++X5NAS6R7SZU9YHWLC79OU5A7N6D4EMFFN1TYUIIKBPPNCTNBURD0UE5BK9W3AX-BF8DDDGRK42YH3BR++1SW64DR4XQIJRF9WXB-M$HOEQ2DUM6W-31$VU-9V9J4PXEY4LL37CN4FIFR2Q+N5-32F9XJ8NRIPRES2HIWY5XSC5QLQ5GLU1TRVI+1I9YU22JOE3ZNP8BMB9LM+I6J9Q6W1MOYM0D3+-NA7CXQT1MLE27TKYFW0OKGT4$MMCCTF71F5KMN1E5AOEI0AG4TV9OQ9NBI5T8SIPSL7QF2JBVOINZX1WTB9PKRBD78EIZ9A9L45DE4Q2XXW$05GMQVN5CL43MI8YG$8P62E+WOC6J$3UTYE-6ZZ1XTI3TOX5MNQVVH01+YMB5F-I-CNJ.D02973BF';
+
 function applyLang() {
   document.documentElement.lang = lang;
   document.querySelectorAll('[data-i18n]').forEach(el => {
     el.textContent = t()[el.dataset.i18n];
   });
   $('#lang').setAttribute('aria-checked', String(lang === 'ko'));
+  $('#sample').href = './?lang=' + lang + SAMPLE;
 }
 
 // 에이전트가 넘긴 값(#j=base64url JSON)을 검증하고 정식 주소(#버전.압축 데이터.검증 번호)로 바꾼다

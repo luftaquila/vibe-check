@@ -118,7 +118,9 @@ button:focus-visible, .btn:focus-visible, a:focus-visible { outline: 3px solid #
 .photos { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .photos img { display: block; width: 100%; height: auto; }
 #copy { min-width: 80px; }      /* '복사'와 '복사됨' 둘 다 들어가는 폭 */
-.prompt-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* 제목 줄: 왼쪽에 제목, 오른쪽에 그 구획의 버튼 */
+.head-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.head-row .btn { line-height: normal; }
 pre.prompt {
   margin: 0; padding: 16px; background: var(--paper); border: 1px solid var(--line);
   white-space: pre-wrap; word-break: break-word; font: 14px/1.6 "NeoDGM Code", ui-monospace, monospace;
@@ -168,7 +170,8 @@ Works with Claude Code and Codex.</p>
 
   <section id="landing" hidden>
     <section>
-      <h2 data-i18n="howTitle">How it works</h2>
+      <div class="head-row"><h2 data-i18n="howTitle">How it works</h2>
+        <a id="sample" class="btn" href="./" data-i18n="sample">Sample receipt</a></div>
       <ol>
         <li data-i18n="how1"></li>
         <li data-i18n="how2"></li>
@@ -176,7 +179,7 @@ Works with Claude Code and Codex.</p>
       </ol>
     </section>
     <section>
-      <div class="prompt-head"><h2 data-i18n="promptTitle">Prompt</h2>
+      <div class="head-row"><h2 data-i18n="promptTitle">Prompt</h2>
         <button id="copy" type="button" data-i18n="copy">Copy</button></div>
       <pre id="prompt" class="prompt"></pre>
     </section>
