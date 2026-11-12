@@ -26,7 +26,7 @@ const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'
 // 문구표. 영수증 언어는 여기서만 갈린다.
 const L = {
   en: {
-    title: y => `${y} YEAR IN REVIEW`,
+    title: y => `${y} PROMPT RECEIPT`,
     nickname: 'Nickname', period: 'Period', issued: 'Issued',
     prompts: 'Prompts sent', sessions: 'Sessions', folders: 'Folders',
     activeDays: 'Days used', dailyAvg: 'Prompts per day', firstPrompt: 'First prompt',
@@ -48,10 +48,10 @@ const L = {
     profByMonth: '[Swearing by month]', worst: 'Roughest month', calmest: 'Calmest month',
     monthPct: (m, v) => `${MONTHS_EN[m - 1]} ${f1(v)}%`,
     badges: 'ACHIEVEMENTS', noBadge: ['Just Browsing', 'nothing unusual'],
-    total: 'TOTAL', thanks: 'THANK YOU FOR PROMPTING', summary: '(SUMMARY)', seeFull: 'FULL RECEIPT HERE', omitted: '... and more',
+    total: 'TOTAL', thanks: 'THANK YOU FOR PROMPTING', summary: 'SUMMARY', seeFull: 'FULL RECEIPT HERE', omitted: '... and more',
   },
   ko: {
-    title: y => `${y} 연간 결산`,
+    title: y => `${y} 프롬프트 영수증`,
     nickname: '닉네임', period: '기록 기간', issued: '발행',
     prompts: '보낸 프롬프트', sessions: '세션', folders: '작업 폴더',
     activeDays: '사용한 날', dailyAvg: '하루 평균', firstPrompt: '첫 프롬프트',
@@ -73,7 +73,7 @@ const L = {
     profByMonth: '[월별 욕설 비율]', worst: '가장 험했던 달', calmest: '가장 평온했던 달',
     monthPct: (m, v) => `${m}월 ${f1(v)}%`,
     badges: '획득 칭호', noBadge: ['평범한 손님', '해당 조건 없음'],
-    total: '합계', thanks: '이용해 주셔서 감사합니다', summary: '(요약)', seeFull: '전체 영수증은 여기서', omitted: '... 이하 생략',
+    total: '합계', thanks: '이용해 주셔서 감사합니다', summary: '요약', seeFull: '전체 영수증은 여기서', omitted: '... 이하 생략',
   },
 };
 
@@ -322,12 +322,14 @@ function footer(pen, d, url, check, maxMod, lead) {
 const CARD_BADGES = 3;
 function layoutCard(pen, d, url, check) {
   const T = pen.T;
+  // 맨 위 가운데에 반전 꼬리표로 요약임을 알린다. 그 아래 머리는 전체 영수증과 같다
+  const tag = pen.width(T.summary) + 36;
+  pen.rect(PAPER_W / 2 - tag / 2, pen.y - 3, PAPER_W / 2 + tag / 2, pen.y + FS + 3);
+  pen.text(PAPER_W / 2, pen.y, T.summary, FS, false, 'ma', PAPER);
+  pen.y += LH + 10;
   pen.center(d.src.map(x => TOOL_NAMES[x].toUpperCase()).join(' + '));
   pen.gap(4);
-  // 제목 뒤에 (요약). 한 줄에 안 들어가면 다음 줄에 기본 글꼴로
-  const title = `${T.title(d.y)} ${T.summary}`;
-  if (pen.width(title, FS * 2) <= PW) pen.center(title, FS * 2, FS * 2 + 8);
-  else { pen.center(T.title(d.y), FS * 2, FS * 2 + 4); pen.center(T.summary, FS, FS + 8); }
+  pen.center(T.title(d.y), FS * 2, FS * 2 + 8);
   pen.center(siteOf(url), FS, LH + 4);
   pen.rule();
   pen.row(T.nickname, d.n);
