@@ -294,6 +294,9 @@ function qrcodeBlock(pen, url, maxMod) {
   pen.y += size;
 }
 
+// 영수증 머리에 찍는 페이지 주소 (데이터 없이)
+const siteOf = url => url.split('#')[0].replace(/\/$/, '');
+
 function badgesOf(d, T) {
   const got = BADGES.filter(([cond]) => cond(d)).map(b => { const [name, why] = b[T === L.ko ? 2 : 1]; return [name, why(d)]; });
   return got.length ? got : [T.noBadge];
@@ -306,11 +309,8 @@ function footer(pen, d, url, check, maxMod, lead) {
   pen.y += FS * 2 + 10;
   pen.rule('=');
   pen.gap(12);
-  // 페이지 주소: 전체 영수증은 QR 위, 요약 카드는 안내 문구를 위에 두고 주소는 QR 아래
-  const site = url.split('#')[0].replace(/\/$/, '');
-  pen.center(lead || site);
+  if (lead) pen.center(lead);      // 요약 카드: QR이 전체 영수증으로 간다는 안내
   qrcodeBlock(pen, url, maxMod);
-  if (lead) pen.center(site);
   pen.gap(12);
   pen.center(pen.T.thanks);
   pen.gap(4);
@@ -326,8 +326,9 @@ function layoutCard(pen, d, url, check) {
   pen.gap(4);
   // 제목 뒤에 (요약). 한 줄에 안 들어가면 다음 줄에 기본 글꼴로
   const title = `${T.title(d.y)} ${T.summary}`;
-  if (pen.width(title, FS * 2) <= PW) pen.center(title, FS * 2, FS * 2 + 14);
-  else { pen.center(T.title(d.y), FS * 2, FS * 2 + 4); pen.center(T.summary, FS, FS + 14); }
+  if (pen.width(title, FS * 2) <= PW) pen.center(title, FS * 2, FS * 2 + 8);
+  else { pen.center(T.title(d.y), FS * 2, FS * 2 + 4); pen.center(T.summary, FS, FS + 8); }
+  pen.center(siteOf(url), FS, LH + 4);
   pen.rule();
   pen.row(T.nickname, d.n);
   pen.row(T.prompts, T.count(d.p), true);
@@ -360,7 +361,8 @@ function layout(pen, d, url, check) {
   const sc = d.sc || [], ph = d.ph || [];
   pen.center(d.src.map(x => TOOL_NAMES[x].toUpperCase()).join(' + '));
   pen.gap(4);
-  pen.center(T.title(d.y), FS * 2, FS * 2 + 14);
+  pen.center(T.title(d.y), FS * 2, FS * 2 + 8);
+  pen.center(siteOf(url), FS, LH + 4);
   pen.rule();
   pen.row(T.nickname, d.n);
   pen.row(T.period, range(d.f, d.e));
