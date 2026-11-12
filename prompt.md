@@ -56,6 +56,7 @@ Generate my coding agent year-in-review receipt.
 | `mp` | the most sessions with a prompt in the same 10-minute slot (date, hour, minute div 10) |
 | `ph` | top short prompts `[[text, count], ...]`, up to 5 (see below) |
 | `mo` | model usage over the last 30 days, per chosen tool `{"claude-code": [[model id, responses], ...], "codex": [[model id, turns], ...]}` (see below). `null` if unavailable |
+| `p30` | prompts per tool in the last 30 days `[[tool, count], ...]`, in the order of `src`. Same 30 days as `mo`, whatever year was chosen. The page uses it to weigh the tools when it merges their models |
 | `co` | correction prompts `[count, share of all prompts]` |
 | `pf` | swearing prompts `[count, share of all prompts]` |
 | `pm` | share of swearing prompts per month, 12 values. `null` where `mc` is `null` or 0 |
@@ -91,7 +92,7 @@ Only when Claude Code is chosen (leave these out otherwise):
 ### Corrections and swearing
 - Write the patterns yourself, for the languages I named. There is no fixed list
 - Swearing: up to 20 regex alternatives per language, covering common swear words and their usual abbreviations or censored spellings
-- Correction: up to 5 regex alternatives per language for words that open a prompt to push back on the previous answer, like "no" or "wait". Anchor them at the start: `^\s*(...)`, with a word boundary where the language has one
+- Correction: up to 5 regex alternatives per language for words that open a prompt to reject the previous answer, like "no". Anchor them at the start: `^\s*(...)`, with a word boundary where the language has one
 - Decide by regex match only, case-insensitive, over all prompts. Do not read prompts to judge them, and do not print the ones that match
 
 ### Model usage `mo`

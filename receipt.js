@@ -41,8 +41,8 @@ const L = {
     short: 'Prompts of 12 characters or fewer', hangul: 'Prompts in Korean', pasted: 'Prompts with a paste',
     slash: 'Slash commands', perSession: 'Prompts per session', longest: 'Longest session',
     parallel: 'Most sessions at once', phrases: '[Top short prompts]', commands: '[Top slash commands]',
-    models: n => `MODELS, LAST ${n} DAYS`, modelNote: (tool, n, many) => { const u = `${fmt(n)} ${tool === 'codex' ? 'turns' : 'responses'}`; return many ? `${TOOL_NAMES[tool]}, ${u}` : `of ${u}`; }, other: 'Other',
-    patience: 'PATIENCE', correction: 'Starting with "no" or "wait"', profanity: 'Prompts with swearing',
+    models: n => `MODELS, LAST ${n} DAYS`, modelNote: (unit, n) => `of ${fmt(n)} ${unit}`, other: 'Other',
+    patience: 'PATIENCE', correction: 'Prompts starting with "no"', profanity: 'Prompts with swearing',
     profByMonth: '[Swearing by month]', worst: 'Roughest month', calmest: 'Calmest month',
     monthPct: (m, v) => `${MONTHS_EN[m - 1]} ${f1(v)}%`,
     badges: 'ACHIEVEMENTS', noBadge: ['Steady Coder', 'nothing unusual'],
@@ -65,7 +65,7 @@ const L = {
     short: '12자 이하 프롬프트 비율', hangul: '한글로 쓴 프롬프트 비율', pasted: '붙여넣기한 프롬프트 비율',
     slash: '슬래시 명령 비율', perSession: '세션당 평균 프롬프트', longest: '가장 긴 세션의 프롬프트 수',
     parallel: '동시에 사용한 최대 세션 수', phrases: '[자주 쓴 짧은 프롬프트]', commands: '[많이 쓴 슬래시 명령]',
-    models: n => `최근 ${n}일 사용 모델`, modelNote: (tool, n, many) => { const u = tool === 'codex' ? `턴 ${fmt(n)}개` : `응답 ${fmt(n)}건`; return many ? `${TOOL_NAMES[tool]}, ${u}` : `${u} 기준`; }, other: '기타',
+    models: n => `최근 ${n}일 사용 모델`, modelNote: (unit, n) => ({ prompts: `프롬프트 ${fmt(n)}개 기준`, turns: `턴 ${fmt(n)}개 기준`, responses: `응답 ${fmt(n)}건 기준` })[unit], other: '기타',
     patience: '인내심 지표', correction: '"아니"로 시작한 프롬프트', profanity: '욕설이 포함된 프롬프트',
     profByMonth: '[월별 욕설 비율]', worst: '가장 험했던 달', calmest: '가장 평온했던 달',
     monthPct: (m, v) => `${m}월 ${f1(v)}%`,
@@ -254,8 +254,11 @@ function hbars(pen, values, labels, fmtValue, labCols = 2, valCols = 7) {
 }
 
 function qrcodeBlock(pen, url) {
+  // 주소의 # 앞은 바이트 모드, 뒤는 영숫자 모드로 담는다
+  const at = url.indexOf('#') + 1;
   const q = qrcode(0, 'M');
-  q.addData(url, 'Byte');
+  q.addData(url.slice(0, at), 'Byte');
+  q.addData(url.slice(at), 'Alphanumeric');
   q.make();
   const n = q.getModuleCount(), quiet = 4;
   const mod = Math.min(6, Math.floor(PW / (n + 2 * quiet)));
@@ -328,11 +331,11 @@ function layout(pen, d, url, check) {
     for (const [k, v] of sc) pen.row('  ' + k, T.times(v));
   }
 
-  for (const mo of d.mo) {
-    pen.band(T.models(mo.d), T.modelNote(mo.tool, mo.r, d.mo.length > 1));
-    const names = mo.s.map(x => (x[0] === 'Other' ? T.other : x[0]));
+  if (d.mo) {
+    pen.band(T.models(d.mo.d), T.modelNote(d.mo.unit, d.mo.r));
+    const names = d.mo.s.map(x => (x[0] === 'Other' ? T.other : x[0]));
     const cols = Math.max(10, ...names.map(n => Math.ceil(pen.width(n) / (FS / 2))));
-    hbars(pen, mo.s.map(x => x[1]), names, v => `${f1(v)}%`, cols, 6);
+    hbars(pen, d.mo.s.map(x => x[1]), names, v => `${f1(v)}%`, cols, 6);
   }
 
   pen.band(T.patience);
@@ -355,6 +358,7 @@ function layout(pen, d, url, check) {
   pen.rule('=');
   pen.gap(4);
   qrcodeBlock(pen, url);
+  pen.center(url.split('#')[0].replace(/^https?:\/\//, '').replace(/\/$/, ''), FS_SMALL);
   pen.center(`${T.check} ${check.slice(0, 4)}-${check.slice(4)}`, FS_SMALL);
   pen.gap(12);
   pen.center(T.thanks);
