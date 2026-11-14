@@ -1,6 +1,6 @@
 # vibe-check
 
-A receipt for your year with a coding agent. Works with Claude Code and Codex.
+A receipt for your year with a coding agent. Works with Claude Code and Codex, in both the CLI and the desktop apps.
 
 **https://luftaquila.github.io/vibe-check/**
 

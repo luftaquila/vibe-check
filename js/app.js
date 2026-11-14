@@ -5,7 +5,7 @@ const base = () => location.origin + location.pathname;
 
 const UI = {
   en: {
-    tagline: 'A receipt for your year with a coding agent.\nWorks with Claude Code and Codex.',
+    tagline: 'A receipt for your year with a coding agent.\nWorks with Claude Code and Codex, in both the CLI and the desktop apps.',
     howTitle: 'How it works',
     how1: 'Copy the prompt below and paste it into Claude Code or Codex.',
     how2: 'Answer its questions. It counts your history on your own computer and sends only the numbers here.',
@@ -37,7 +37,7 @@ const UI = {
     copyLink: 'Copy link',
   },
   ko: {
-    tagline: '코딩 에이전트와 보낸 1년을 영수증 한 장으로 뽑아 드립니다.\nClaude Code와 Codex를 지원합니다.',
+    tagline: '코딩 에이전트와 보낸 1년을 영수증 한 장으로 뽑아 드립니다.\nClaude Code와 Codex를 CLI와 데스크탑 앱 모두 지원합니다.',
     howTitle: '만드는 법',
     how1: '아래 프롬프트를 복사해 Claude Code나 Codex에 붙여 넣습니다.',
     how2: '질문에 답하면 에이전트가 내 컴퓨터에서 기록을 세어 숫자만 이 페이지로 보냅니다.',
