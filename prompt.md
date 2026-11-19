@@ -14,13 +14,14 @@ Generate my coding agent year-in-review receipt.
 - Add no values that are not listed here. If a value cannot be computed, stop and report instead of guessing.
 
 ## Input
-- Claude Code (`claude-code`): `~/.claude/history.jsonl` (under `CLAUDE_CONFIG_DIR` if set). One line is one prompt: `timestamp` (ms), `display` (text), `project` (folder), `sessionId`, `pastedContents`
-- Claude Desktop does not write to that file. Add its prompts, counted as `claude-code`, from the session files: every `*.jsonl` under `~/.claude/projects/` (including subfolders). A prompt is a line whose `type` is `user`, `entrypoint` is `claude-desktop`, `origin.kind` is `human`, and `isSidechain` is not true. Read `timestamp` (ISO 8601), `sessionId`, `cwd` (folder), and the text: `message.content` if it is a string, otherwise the `text` of its blocks whose `type` is `text`, joined with newlines. Leave out blocks whose trimmed text starts with `<system-reminder>` and ends with `</system-reminder>`. Count each `uuid` once. A prompt that is only an image has empty text and still counts
+- Claude Code (`claude-code`): `~/.claude/history.jsonl` (under `CLAUDE_CONFIG_DIR` if set). One line is one prompt: `timestamp` (ms), `display` (text), `project` (folder), `sessionId`, `pastedContents`. Skip lines whose trimmed `display` is `/rate-limit-options`
+- Claude Desktop and the VS Code extension do not write to that file. Add their prompts, counted as `claude-code`, from the session files: every `*.jsonl` under `~/.claude/projects/` (including subfolders). Use only lines whose `entrypoint` is `claude-desktop`, `claude-desktop-3p`, or `claude-vscode` and whose `isSidechain` is not true. A prompt is such a line whose `type` is `user` and `origin.kind` is `human`, or whose `type` is `attachment` with `attachment.type` `queued_command`, `attachment.commandMode` `prompt`, and `attachment.origin.kind` `human` (a prompt sent while a reply was running). Read `timestamp` (ISO 8601), `sessionId`, `cwd` (folder), and the text: `attachment.prompt` for an `attachment` line, otherwise `message.content` if it is a string, otherwise the `text` of its blocks whose `type` is `text`, joined with newlines. Leave out blocks whose trimmed text starts with `<system-reminder>` and ends with `</system-reminder>`. Count each `uuid` once. A prompt that is only an image has empty text and still counts
 - Codex (`codex`), including ChatGPT Desktop: three sources under `~/.codex` (under `CODEX_HOME` if set). Any of them may be missing:
   - History file: `history.jsonl`. One line is one prompt: `ts` (seconds), `text`, `session_id`
-  - Session files: every `rollout-*.jsonl` under `sessions/` (including subfolders) whose first line (`type` is `session_meta`) has a string `payload.source` other than `exec`. The session id is that `payload.id`; files with the same id are one session. A prompt is a line whose `type` is `event_msg` and whose `payload.type` is `user_message` (text: `payload.message`), or whose `payload.type` is `item_completed` with `payload.item.type` `UserMessage` (text: the `text` of the `payload.item.content` entries whose `type` is `text`, joined with newlines). Read `timestamp` (ISO 8601) of the line
-  - App database (SQLite): table `threads` in `state_5.sqlite` and table `thread_items` in `thread_history_1.sqlite`. Use the threads whose `source` is not `exec` and does not start with `{`. A prompt is a `thread_items` row whose `item_type` is `userMessage`: `thread_id` is the session id (`id` in `threads`), `created_at_ms` is the time (ms), and the text is the `text` of the entries of `content` in `item_json` (JSON) whose `type` is `text`, joined with newlines. Skip this source if it cannot be read
-  - For each session id, apply Dedupe to each source, count the session's prompts in it over all years, and take the session's prompts from the one source with the most. On a tie: the history file, then the session files, then the database
+  - Session files: every `rollout-*.jsonl` under `sessions/` and `archived_sessions/` (including subfolders) whose first line (`type` is `session_meta`) has a `payload.source` that is `cli`, `vscode`, or an object with a `custom` key (such as `{"custom":"chatgpt"}`). The session id is that `payload.id`; files with the same id are one session. A prompt is a line whose `type` is `event_msg` and whose `payload.type` is `user_message` (text: `payload.message`), or whose `payload.type` is `item_completed` with `payload.item.type` `UserMessage` (text: the `text` of the `payload.item.content` entries whose `type` is `text`, joined with newlines). Read `timestamp` (ISO 8601) of the line
+  - App database (SQLite): table `threads` in `state_5.sqlite` and table `thread_items` in `thread_history_1.sqlite`. Use the threads whose `source` is `cli`, `vscode`, or JSON with a `custom` key (such as `{"custom":"chatgpt"}`). A prompt is a `thread_items` row whose `item_type` is `userMessage`: `thread_id` is the session id (`id` in `threads`), `created_at_ms` is the time (ms), and the text is the `text` of the entries of `content` in `item_json` (JSON) whose `type` is `text`, joined with newlines. Skip this source if it cannot be read
+  - Text of a Codex prompt: if it has a line that is exactly `## My request for Codex:`, keep only what follows the first such line. Then replace each `<send_user_message_question_reply>...</send_user_message_question_reply>` block with the `answer` values of the JSON array inside it, joined with newlines. Such an answer counts as a prompt
+  - For each session id, apply Dedupe to each source and count the session's prompts in it over all years. Take the session's prompts from the session files or the database, whichever has more. On a tie, take the session files. The history file also keeps drafts that were never sent, so use it only for sessions with no prompts in either
 - If `CLAUDE_CONFIG_DIR` or `CODEX_HOME` is set, read the session files and the database under both it and the default `~/.claude` or `~/.codex`, in every rule below too
 - Scope: records of the chosen year in local time. Trim whitespace around the prompt text
 - End date: today, or December 31 for a past year
@@ -69,12 +70,12 @@ Only when Claude Code is chosen (leave these out otherwise):
 
 | Key | Value |
 |---|---|
-| `ps` | number of Claude Code prompts with a paste: `pastedContents` is not empty, or the text contains `[Pasted text` or `[Image`, or, for a Claude Desktop prompt, `message.content` has a block whose `type` is `image` |
+| `ps` | number of Claude Code prompts with a paste: `pastedContents` is not empty, or the text contains `[Pasted text` or `[Image`, or, for a prompt from the session files, `message.content` has a block whose `type` is `image` |
 | `sc` | top slash commands `[[name, count], ...]`, up to 5. Count descending, then name |
 | `btw`, `rw` | counts of `/btw` and `/rewind` |
 
 ### Project folders `pj`
-- Claude Code: `project` of each prompt (`cwd` for Claude Desktop prompts)
+- Claude Code: `project` of each prompt (`cwd` for prompts from the session files)
 - Codex: for each session with a prompt in the pool, `payload.cwd` on the first line (`type` is `session_meta`) of its session file, or `cwd` in `threads` if it has no session file
 - Cut each path from `/.claude/worktrees/` onward (`\.claude\worktrees\` on Windows). Temp folders count as one: paths starting with `/private/tmp/`, `/tmp/`, `/var/folders/`, or containing `\AppData\Local\Temp\`, `/scratch-workspaces/`, or `/Documents/Codex/` (the last two also with `\` on Windows)
 - Count the distinct folders over all chosen tools together
@@ -99,7 +100,7 @@ Only when Claude Code is chosen (leave these out otherwise):
 
 ### Model usage `mo`
 - Claude Code: every `*.jsonl` under `~/.claude/projects/` (including subfolders) modified within the last 30 days. Read only `message.id`, `message.model`, `timestamp` (ISO 8601) of lines whose `type` is `assistant`. Count each `message.id` once. Skip a `message.model` starting with `<`
-- Codex: every `rollout-*.jsonl` under `~/.codex/sessions/` (including subfolders) modified within the last 30 days. Read only `payload.model` and `timestamp` (ISO 8601) of lines whose `type` is `turn_context`. Count one turn per such line
+- Codex: every `rollout-*.jsonl` under `~/.codex/sessions/` and `~/.codex/archived_sessions/` (including subfolders) modified within the last 30 days. Read only `payload.turn_id`, `payload.model`, and `timestamp` (ISO 8601) of lines whose `type` is `turn_context`. Count each `payload.turn_id` once
 - Count only what falls within the last 30 days. Keep model ids as they are
 
 ## Delivery
